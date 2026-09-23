@@ -1,0 +1,503 @@
+{
+  "app": {
+    "name": "Tramo",
+    "description": "Tu trabajo, tramo a tramo: las horas de cada proyecto, simples y ordenadas."
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "processing": "Procesando…"
+  },
+  "nav": {
+    "appName": "Tramo",
+    "label": "Navegación principal",
+    "home": "Inicio",
+    "menu": "Menú",
+    "openMenu": "Abrir el menú",
+    "closeMenu": "Cerrar el menú",
+    "week": "Semana",
+    "metrics": "Métricas",
+    "admin": "Admin",
+    "settings": "Ajustes",
+    "signOut": "Cerrar sesión",
+    "loading": "Cargando…"
+  },
+  "adminNav": {
+    "label": "Administración",
+    "members": "Miembros",
+    "projects": "Proyectos",
+    "workspace": "Espacio"
+  },
+  "workspace": {
+    "title": "Espacio de trabajo",
+    "subtitle": "El nombre que ven todos arriba, en la barra de navegación.",
+    "name": "Nombre del espacio",
+    "hint": "Por ejemplo, el nombre de tu empresa o equipo.",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "saved": "Nombre guardado.",
+    "errors": {
+      "nameRequired": "Poné un nombre.",
+      "nameTooLong": "Máximo 60 caracteres.",
+      "notFound": "El espacio ya no existe. Recargá la página.",
+      "generic": "Algo salió mal. Probá de nuevo."
+    }
+  },
+  "projects": {
+    "title": "Proyectos",
+    "subtitle": "Creá proyectos y definí quién registra horas en cada uno. Arrastrá a una persona sobre un proyecto o usá “Asignar”.",
+    "emptyProjects": "Todavía no hay proyectos. Creá el primero arriba.",
+    "roles": {
+      "TRACKER": "Registra",
+      "VIEWER": "Observa"
+    },
+    "colors": {
+      "blue": "Azul",
+      "orange": "Naranja",
+      "aqua": "Aguamarina",
+      "yellow": "Amarillo",
+      "magenta": "Magenta",
+      "green": "Verde",
+      "violet": "Violeta",
+      "red": "Rojo"
+    },
+    "create": {
+      "name": "Nuevo proyecto",
+      "placeholder": "Nombre del proyecto",
+      "submit": "Crear",
+      "submitting": "Creando…"
+    },
+    "people": {
+      "title": "Personas",
+      "hint": "Arrastralas a un proyecto para que registren horas ahí. En el celu, mantené apretado para arrastrar."
+    },
+    "card": {
+      "members": "{count, plural, =0 {sin personas} one {# persona} other {# personas}}",
+      "empty": "Nadie asignado todavía.",
+      "roleLabel": "Rol de {name} en {project}",
+      "remove": "Quitar a {name} del proyecto",
+      "assign": "Asignar",
+      "edit": "Editar",
+      "archive": "Archivar",
+      "restore": "Restaurar"
+    },
+    "assignDialog": {
+      "title": "Asignar a {project}",
+      "empty": "Todas las personas activas ya están en este proyecto.",
+      "assignAs": "Asignar a {name} como {role}",
+      "close": "Listo"
+    },
+    "editDialog": {
+      "title": "Editar proyecto",
+      "name": "Nombre",
+      "color": "Color",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "saving": "Guardando…"
+    },
+    "archiveDialog": {
+      "title": "¿Archivar {project}?",
+      "body": "Deja de aparecer para registrar horas. Su historial queda intacto y lo podés restaurar cuando quieras.",
+      "confirm": "Archivar"
+    },
+    "archived": {
+      "title": "Archivados"
+    },
+    "dnd": {
+      "roleDescription": "arrastrable",
+      "instructions": "Para arrastrar, apretá espacio o enter. Movete con las flechas y apretá espacio o enter para soltar, o escape para cancelar. También podés usar el botón Asignar de cada proyecto.",
+      "picked": "Agarraste a {name}.",
+      "over": "{name} está sobre {project}.",
+      "notOver": "{name} no está sobre ningún proyecto.",
+      "dropped": "Asignaste a {name} a {project}.",
+      "cancelled": "Cancelaste el arrastre de {name}."
+    },
+    "errors": {
+      "nameRequired": "Poné un nombre.",
+      "nameTooLong": "Máximo 60 caracteres.",
+      "nameTaken": "Ya hay un proyecto con ese nombre.",
+      "invalidColor": "Elegí un color de la lista.",
+      "invalidRole": "Elegí un rol válido.",
+      "notMember": "Esa persona no es miembro activo del espacio.",
+      "notFound": "Ese proyecto ya no existe o cambió. Recargá la página.",
+      "generic": "Algo salió mal. Probá de nuevo."
+    }
+  },
+  "members": {
+    "title": "Miembros",
+    "subtitle": "Invitá gente, aprobá pedidos y definí quién administra el espacio.",
+    "roles": {
+      "ADMIN": "Admin",
+      "MEMBER": "Miembro"
+    },
+    "invite": {
+      "title": "Invitar",
+      "email": "Mail de Google",
+      "emailPlaceholder": "nombre@gmail.com",
+      "hint": "No se manda ningún mail: cuando esa persona entre con Google, va a tener acceso directo.",
+      "role": "Rol",
+      "projects": "Proyectos",
+      "projectsHint": "Opcional. Cuando entre con Google, va a estar directo en los proyectos que elijas, con ese rol.",
+      "projectRole": "Rol en {project}",
+      "notInProject": "No",
+      "submit": "Invitar",
+      "submitting": "Invitando…",
+      "success": "Listo: cuando {email} entre con Google, va a tener acceso{projects, plural, =0 {} one { y va a estar en # proyecto} other { y va a estar en # proyectos}}."
+    },
+    "pending": {
+      "title": "Pedidos pendientes",
+      "requested": "pidió acceso {date}",
+      "approve": "Aprobar",
+      "reject": "Rechazar"
+    },
+    "active": {
+      "title": "Miembros activos",
+      "you": "vos",
+      "roleLabel": "Rol de {name}",
+      "removeAccess": "Quitar acceso",
+      "removeTitle": "¿Quitarle el acceso a {name}?",
+      "removeBody": "Deja de ver el espacio en su próxima acción. Sus horas quedan guardadas y podés devolverle el acceso cuando quieras.",
+      "removeConfirm": "Quitar acceso"
+    },
+    "invitations": {
+      "title": "Invitaciones abiertas",
+      "invitedAs": "Invitado como {role}",
+      "projects": "Proyectos de la invitación",
+      "projectAs": "{project} · {role}",
+      "revoke": "Revocar",
+      "revokeTitle": "¿Revocar la invitación a {email}?",
+      "revokeBody": "Solo borra la aprobación previa. Si esa persona ya entró, su acceso no cambia.",
+      "revokeConfirm": "Revocar"
+    },
+    "rejected": {
+      "title": "Sin acceso",
+      "restore": "Devolver acceso"
+    },
+    "errors": {
+      "invalidEmail": "Escribí un mail válido.",
+      "invalidRole": "Elegí un rol válido.",
+      "invalidProjects": "Revisá los proyectos elegidos y probá de nuevo.",
+      "alreadyMember": "Esa persona ya es miembro activo.",
+      "lastAdmin": "El espacio necesita al menos un admin activo.",
+      "self": "No podés quitarte el acceso a vos mismo.",
+      "notFound": "Ese registro ya no existe o cambió. Recargá la página.",
+      "generic": "Algo salió mal. Probá de nuevo."
+    }
+  },
+  "signIn": {
+    "title": "Tramo",
+    "subtitle": "Tu trabajo, tramo a tramo. Registrá en qué se va el tiempo de cada proyecto.",
+    "continueWithGoogle": "Continuar con Google",
+    "redirecting": "Redirigiendo…",
+    "errors": {
+      "cancelled": "Cancelaste el inicio de sesión con Google. Probá de nuevo cuando quieras.",
+      "generic": "No se pudo iniciar sesión con Google. Probá de nuevo."
+    }
+  },
+  "pending": {
+    "pending": {
+      "title": "Tu acceso está pendiente",
+      "body": "Un admin tiene que aprobar tu ingreso con {email}. Cuando lo haga, vas a poder entrar desde acá."
+    },
+    "rejected": {
+      "title": "Tu solicitud fue rechazada",
+      "body": "Un admin rechazó el acceso de {email}. Si creés que fue un error, podés pedirlo de nuevo."
+    },
+    "none": {
+      "title": "Todavía no hay un espacio de trabajo",
+      "body": "Entraste como {email}, pero ningún admin creó el espacio todavía. Cuando exista, pedí acceso desde acá."
+    },
+    "requestAgain": "Pedir acceso",
+    "signOut": "Cerrar sesión"
+  },
+  "metrics": {
+    "title": "Métricas",
+    "subtitleAdmin": "Horas de todo el espacio de trabajo.",
+    "subtitleMember": "Horas de todas las personas en los proyectos donde participás.",
+    "noProjects": "Todavía no participás de ningún proyecto. Cuando un admin te asigne, vas a ver sus métricas acá.",
+    "empty": "No hay horas registradas en este período.",
+    "total": "Total del período",
+    "totalFor": "Total del período en {project}",
+    "summary": "{people, plural, one {# persona} other {# personas}} · {projects, plural, one {# proyecto} other {# proyectos}}",
+    "hours": "Horas",
+    "filters": {
+      "range": "Período",
+      "project": "Proyecto",
+      "allProjects": "Todos los proyectos",
+      "archived": "{name} (archivado)",
+      "ranges": {
+        "week": "Esta semana",
+        "4w": "4 semanas",
+        "12w": "12 semanas"
+      }
+    },
+    "chart": {
+      "total": "Total",
+      "other": "Otros",
+      "tick": "{hours} h",
+      "showTable": "Ver como tabla"
+    },
+    "weekly": {
+      "title": "Semana a semana",
+      "caption": "Horas por semana y por proyecto",
+      "bucket": "Semana"
+    },
+    "daily": {
+      "title": "Día a día",
+      "caption": "Horas por día y por proyecto",
+      "bucket": "Día"
+    },
+    "byPerson": {
+      "title": "Horas por persona",
+      "caption": "Horas por persona en el período",
+      "name": "Persona"
+    },
+    "byProject": {
+      "title": "Horas por proyecto",
+      "caption": "Horas por proyecto en el período",
+      "name": "Proyecto"
+    },
+    "tasks": {
+      "title": "Tareas que más tiempo llevan",
+      "caption": "Las tareas con más horas en el período",
+      "name": "Tarea",
+      "empty": "Todavía no hay tareas con descripción en este período."
+    }
+  },
+  "week": {
+    "thisWeek": "Esta semana",
+    "week": "Semana",
+    "navigation": "Cambiar de semana",
+    "previous": "Semana anterior",
+    "next": "Semana siguiente",
+    "backToThisWeek": "Volver a esta semana",
+    "total": "Total",
+    "project": "Proyecto",
+    "caption": "Horas por proyecto y por día, semana del {week}",
+    "blocks": "Tramos",
+    "empty": "No hay horas registradas en esta semana.",
+    "whose": "De quién es la semana",
+    "mine": "Mías",
+    "team": "Equipo",
+    "teamTotal": "Total del equipo",
+    "person": "Persona",
+    "teamCaption": "Horas por persona y por día, semana del {week}",
+    "teamBlocks": "Tramos del equipo",
+    "teamEmpty": "Nadie registró horas en esta semana."
+  },
+  "observer": {
+    "title": "Estás como observador",
+    "body": "Ves las horas que registra el equipo en estos proyectos, con el detalle de cada tarea. Vos no registrás horas.",
+    "projects": "Proyectos que observás",
+    "teamWeek": "Ver la semana del equipo",
+    "metrics": "Ver métricas",
+    "needToTrack": "¿Tenés que registrar horas? Pedile a un admin que te pase a “Registra” en ese proyecto.",
+    "thisWeek": "Esta semana en tus proyectos",
+    "quietWeek": "Todavía nadie registró horas esta semana."
+  },
+  "dateField": {
+    "placeholder": "dd/mm/aaaa",
+    "openCalendar": "Abrir el calendario",
+    "closeCalendar": "Cerrar el calendario",
+    "previousMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente",
+    "month": "Mes",
+    "year": "Año",
+    "today": "Hoy"
+  },
+  "entries": {
+    "add": "Agregar horas",
+    "addTitle": "Agregar horas",
+    "editTitle": "Editar tramo",
+    "project": "Proyecto",
+    "description": "Tarea",
+    "descriptionPlaceholder": "¿En qué trabajaste?",
+    "date": "Día",
+    "start": "Inicio",
+    "end": "Fin",
+    "pickTime": "Elegí la hora",
+    "nextDayHint": "{duration}, día siguiente",
+    "lasts": "Dura {duration}",
+    "nextDay": "termina al día siguiente",
+    "durationMinutes": "{minutes} min",
+    "durationHours": "{hours} h",
+    "durationHoursMinutes": "{hours} h {minutes} min",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "editLabel": "Editar {entry}",
+    "deleteLabel": "Borrar {entry}",
+    "deleteTitle": "¿Borrar este tramo?",
+    "deleteBody": "Se borra {entry} y sus horas dejan de contar en las métricas. No se puede deshacer.",
+    "deleteConfirm": "Borrar",
+    "errors": {
+      "projectRequired": "Elegí un proyecto.",
+      "invalidDate": "Escribí un día válido (dd/mm/aaaa).",
+      "invalidStart": "Elegí a qué hora empezaste.",
+      "invalidEnd": "Elegí a qué hora terminaste.",
+      "tooShort": "El bloque tiene que durar al menos un minuto.",
+      "tooLong": "Un bloque puede durar hasta 24 horas.",
+      "future": "No se pueden cargar horas en el futuro.",
+      "overlap": "Se superpone con otro tramo tuyo. Revisá los horarios.",
+      "cannotTrack": "No podés registrar horas en ese proyecto.",
+      "forbidden": "Solo podés editar tus propios tramos.",
+      "running": "Ese tramo está corriendo. Pausalo desde el timer para editarlo.",
+      "notFound": "Ese tramo ya no existe. Recargá la página.",
+      "generic": "Algo salió mal. Probá de nuevo."
+    }
+  },
+  "timer": {
+    "title": "Timer",
+    "project": "Proyecto",
+    "description": "¿En qué estás trabajando?",
+    "descriptionPlaceholder": "¿En qué estás trabajando?",
+    "elapsed": "Tiempo transcurrido",
+    "idle": "Elegí un proyecto y dale play.",
+    "start": "Iniciar el timer",
+    "switch": "Cambiar el timer a esta tarea",
+    "popOut": "Abrir el timer en una ventana flotante",
+    "closePopOut": "Cerrar la ventana flotante",
+    "noProjects": {
+      "title": "Todavía no tenés proyectos para registrar",
+      "member": "Pedile a un admin que te asigne a un proyecto para empezar a registrar horas.",
+      "admin": "Creá un proyecto y asignate para empezar a registrar horas.",
+      "adminCta": "Ir a proyectos"
+    },
+    "forgotten": {
+      "title": "¿Te olvidaste el timer?",
+      "body": "Lleva {hours, plural, one {# hora} other {# horas}} corriendo en {project}.",
+      "keep": "Sigo trabajando",
+      "stop": "Terminarla ahora"
+    },
+    "recent": {
+      "title": "Últimos tramos",
+      "empty": "Todavía no registraste horas. Elegí un proyecto y dale play.",
+      "noDescription": "Sin descripción",
+      "edited": "editado",
+      "now": "ahora",
+      "running": "En curso"
+    },
+    "errors": {
+      "cannotTrack": "No podés registrar horas en ese proyecto.",
+      "conflict": "Se inició otro timer al mismo tiempo en otro dispositivo. Ya actualizamos la pantalla.",
+      "invalid": "Revisá el proyecto y la descripción.",
+      "generic": "Algo salió mal. Probá de nuevo.",
+      "nothingPaused": "No hay ninguna tarea en pausa. Recargá la página."
+    },
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "finish": "Terminar la tarea",
+    "paused": "En pausa",
+    "units": {
+      "hours": "Horas",
+      "minutes": "Minutos",
+      "seconds": "Segundos"
+    }
+  },
+  "settings": {
+    "title": "Ajustes",
+    "themeHint": "Elegí la paleta y el modo. El cambio se aplica al instante y queda guardado en tu cuenta, así te sigue en cualquier dispositivo."
+  },
+  "theme": {
+    "palette": "Paleta",
+    "mode": "Modo",
+    "palettes": {
+      "lima": "Lima",
+      "salvia": "Salvia",
+      "cielo": "Cielo",
+      "indigo": "Índigo",
+      "orquidea": "Orquídea",
+      "coral": "Coral",
+      "ambar": "Ámbar",
+      "grafito": "Grafito"
+    },
+    "modes": {
+      "dark": "Oscuro",
+      "light": "Claro"
+    }
+  },
+  "help": {
+    "button": "Ayuda",
+    "title": "Cómo se usa Tramo",
+    "intro": "Un tour corto te muestra qué tocar en cada pantalla. Podés saltearlo cuando quieras y retomarlo desde acá, donde lo dejaste.",
+    "steps": "Qué vas a ver",
+    "leftHere": "Lo dejaste acá",
+    "start": "Empezar el tour",
+    "resume": "Retomar (paso {step} de {total})",
+    "restart": "Empezar de nuevo",
+    "again": "Ver el tour de nuevo",
+    "close": "Cerrar"
+  },
+  "tour": {
+    "progress": "Paso {current} de {total}",
+    "next": "Siguiente",
+    "back": "Atrás",
+    "skip": "Saltear",
+    "done": "Listo",
+    "steps": {
+      "welcome": {
+        "title": "Te muestro cómo se usa",
+        "body": "Un recorrido corto por lo que vas a usar todos los días. Podés saltearlo y retomarlo cuando quieras desde el botón de ayuda."
+      },
+      "welcomeObserver": {
+        "title": "Estás como observador",
+        "body": "No vas a registrar horas: vas a ver las del equipo, con el detalle de cada tarea. Te muestro dónde está cada cosa."
+      },
+      "welcomeUnassigned": {
+        "title": "Te damos la bienvenida",
+        "body": "Todavía no estás en ningún proyecto. Cuando un admin te sume, vas a poder registrar horas o verlas. Mientras, te muestro lo básico."
+      },
+      "welcomeAdmin": {
+        "title": "Armemos tu espacio",
+        "body": "Como admin, primero invitás al equipo y creás los proyectos. Te muestro dónde se hace cada cosa."
+      },
+      "timer": {
+        "title": "Elegí, escribí y dale play",
+        "body": "Elegí el proyecto, escribí en qué vas a trabajar y dale play. Pausalo y reanudalo cuando quieras: el reloj sigue desde donde quedó. Con el cuadrado terminás la tarea."
+      },
+      "popOut": {
+        "title": "El reloj, siempre a la vista",
+        "body": "Abrilo en una ventanita que queda arriba de todo, para pausarlo sin volver a esta pestaña. Funciona en Chrome y Edge de escritorio."
+      },
+      "recent": {
+        "title": "Tus últimos tramos",
+        "body": "Acá quedan tus tramos de trabajo. Con el lápiz corregís uno; con el tacho lo borrás."
+      },
+      "weekAdd": {
+        "title": "¿Te olvidaste de darle play?",
+        "body": "Cargá las horas a mano: elegí el proyecto, el día y las horas de inicio y fin."
+      },
+      "weekTeam": {
+        "title": "Tu semana y la del equipo",
+        "body": "En Mías ves tus horas día por día. En Equipo, cada tarea que registró el resto en tus proyectos."
+      },
+      "observerHome": {
+        "title": "Lo que seguís",
+        "body": "Estos son los proyectos que observás. Desde acá vas a la semana del equipo o a las métricas."
+      },
+      "teamWeek": {
+        "title": "Todo el detalle",
+        "body": "Cada tarea que registró el equipo: quién la hizo, en qué proyecto y a qué hora. Con las flechas cambiás de semana."
+      },
+      "metrics": {
+        "title": "Métricas",
+        "body": "Horas por persona, por proyecto y por tarea. Cambiá el período o filtrá por proyecto acá arriba."
+      },
+      "invite": {
+        "title": "Sumá gente",
+        "body": "Invitá con su mail de Google y elegí de antemano sus proyectos y si registra horas u observa."
+      },
+      "board": {
+        "title": "Proyectos y equipos",
+        "body": "Creá proyectos y arrastrá a cada persona al suyo. Si preferís, usá Asignar en cada proyecto."
+      },
+      "settings": {
+        "title": "A tu gusto",
+        "body": "Elegí la paleta y el modo claro u oscuro. Queda guardado en tu cuenta."
+      },
+      "help": {
+        "title": "Siempre a mano",
+        "body": "Si querés repasar algo, tocá el botón de ayuda y retomás el tour donde lo dejaste. En el celular está dentro del menú."
+      }
+    }
+  }
+}

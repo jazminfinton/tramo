@@ -1,0 +1,560 @@
+@import "tailwindcss";
+
+/* `dark:` follows the app's theme attribute, not the OS. The source of truth
+   is `data-theme` on <html>, set on the server from the theme cookies (see
+   app/layout.tsx and lib/theme.ts). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* A very flat window or screen: short, or three times wider than tall. The
+   floating timer stands upright by default and only lies down in a row then. */
+@custom-variant flat {
+  @media (max-height: 200px), (min-aspect-ratio: 3/1) {
+    @slot;
+  }
+}
+
+/* ==========================================================================
+   Design tokens
+
+   Ported from Fragua's system, with its two rules, plus Tramo's own third:
+
+   1. Surfaces are separated by LUMINANCE, never by strokes. Every panel is a
+      step on the elevation ladder (ground → surface → raised → tile). Reach
+      for `border` only when a shape needs an outline (a focus ring).
+   2. One accent, used sparingly, always through the semantic tokens
+      (`accent`, `on-accent`). `warn` is a different hue on purpose: accent
+      means "look here", warn means "something needs attention".
+   3. The brutalism lives in the type, and only there: Big Shoulders
+      (`poster`) shouts the titles and the big numbers. Shapes stay soft:
+      rounded corners, soft shadows, no rules.
+
+   Eight palettes × two modes, selected by attributes on <html>:
+   data-palette="lima|salvia|cielo|indigo|orquidea|coral|ambar|grafito" and
+   data-theme="dark|light". The @theme block holds the default (Lima, dark);
+   the blocks below reassign the same tokens. Neutrals are tinted toward each
+   accent hue, except Grafito's: it's the grey one. Every palette climbs the
+   same lightness ladder (in OKLCH), so a palette changes hue, never contrast.
+
+   Every palette passes WCAG AA (4.5:1) for ink / ink-muted / ink-dim on
+   surface and raised, accent on ground and surface, on-accent on accent, and
+   warn on surface, in both modes. Ratios were measured on the raw tokens; the
+   grain shifts composited values by ~1% — re-measure if an alpha changes.
+   lib/theme.test.ts checks every pair, so a new palette can't skip this.
+   ========================================================================== */
+
+@theme {
+  /* --- Elevation ladder (Lima, dark) ------------------------------------- */
+  --color-ground: #161713; /* page background        */
+  --color-surface: #20211c; /* panels, cards          */
+  --color-raised: #2a2b25; /* nested panels, inputs  */
+  --color-tile: #43443c; /* icon tiles, chips      */
+
+  /* --- Text -------------------------------------------------------------- */
+  --color-ink: #f7f7f0;
+  --color-ink-muted: #a7a89c; /* body copy              */
+  --color-ink-dim: #98998d; /* captions, metadata     */
+
+  /* --- Semantic accent --------------------------------------------------- */
+  --color-accent: #c5ef5a;
+  --color-on-accent: #171a0c;
+  --color-warn: #ff9a62;
+
+  /* --- Radii ------------------------------------------------------------- */
+  --radius-tile: 8px;
+  --radius-panel: 16px;
+  --radius-pill: 32px;
+
+  /* --- Type ---------------------------------------------------------------
+     Two voices. `poster` (Big Shoulders, ultra-condensed and heavy) shouts
+     the titles, the big numbers and the wordmark. Geist speaks the rest:
+     `display` carries nav, buttons, labels and numbers, `sans` what you read.
+     The two roles share the family today; they stay apart so a component
+     says what its text is, and changing a role's face is one line here. See
+     app/layout.tsx. */
+  --font-poster: var(--font-big-shoulders), "Arial Narrow", sans-serif;
+  --font-display: var(--font-geist), system-ui, sans-serif;
+  --font-sans: var(--font-geist), system-ui, sans-serif;
+
+  /* --- Motion -------------------------------------------------------------
+     The system's single easing curve. `ease-signature` in class names. */
+  --ease-signature: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* --- Project colors (dark steps) ------------------------------------------
+   Categorical identity for projects in charts and dots. Order and values
+   come from the dataviz reference palette, re-validated on this app's sixteen
+   surfaces: every check passes in dark mode. Keys match lib/project-colors.ts.
+   Light steps are below, under [data-theme].
+
+   `static` because they're read through var() in inline styles (a project's
+   dot, a chart's fill), never through a utility class. Tailwind only emits the
+   theme variables some class uses, so without it these vanished from the CSS
+   and every project painted black in dark mode. */
+@theme static {
+  --color-project-blue: #3987e5;
+  --color-project-orange: #d95926;
+  --color-project-aqua: #199e70;
+  --color-project-yellow: #c98500;
+  --color-project-magenta: #d55181;
+  --color-project-green: #008300;
+  --color-project-violet: #9085e9;
+  --color-project-red: #e66767;
+}
+
+/* Light steps of the project colors. Orange, aqua, yellow and magenta sit
+   under 3:1 against the paper surfaces, so every chart ships visible labels
+   and a table view (the dataviz "relief rule"): color never carries identity
+   alone. */
+[data-theme="light"] {
+  --color-project-blue: #2a78d6;
+  --color-project-orange: #eb6834;
+  --color-project-aqua: #1baf7a;
+  --color-project-yellow: #eda100;
+  --color-project-magenta: #e87ba4;
+  --color-project-green: #008300;
+  --color-project-violet: #4a3aa7;
+  --color-project-red: #e34948;
+}
+
+:root {
+  color-scheme: dark;
+  --noise-tile: 200px;
+  /* White-noise tile baked by scripts/build-noise.mjs (`pnpm noise`), with
+     its alpha baked in: 4.81% on dark grounds, 1.85% on paper. The script's
+     header documents why it's a raster and not a filter. */
+  --noise: url("/noise-dark.avif");
+}
+
+/* --- Modes --------------------------------------------------------------
+   Light mode is "paper": warm, not white — a white sheet on a warm desk.
+   Elevation still rises toward light, and chips dip instead because nothing
+   rises past white. Grain runs at well under half the dark alpha: dark specks
+   on light read as dirt. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --noise: url("/noise-dark.avif");
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --noise: url("/noise-light.avif");
+}
+
+/* --- Palettes ------------------------------------------------------------
+   Every palette × mode pair is spelled out, so the blocks are mutually
+   exclusive and order doesn't matter. That also makes themes scopable: any
+   element carrying both attributes (a swatch in the theme picker) renders
+   in that theme, whatever <html> says. */
+
+/* Salvia: mint on greenish greys. */
+[data-palette="salvia"][data-theme="dark"] {
+  --color-ground: #141816;
+  --color-surface: #1e2320;
+  --color-raised: #282e2a;
+  --color-tile: #3f4641;
+  --color-ink: #f3f6f4;
+  --color-ink-muted: #a1aaa4;
+  --color-ink-dim: #939c96;
+  --color-accent: #5ee0a0;
+  --color-on-accent: #0c1510;
+  --color-warn: #e5a83c;
+}
+
+[data-palette="salvia"][data-theme="light"] {
+  --color-ground: #edf0ea;
+  --color-surface: #f5f7f3;
+  --color-raised: #ffffff;
+  --color-tile: #dfe5dd;
+  --color-ink: #1a1f1c;
+  --color-ink-muted: #535e57;
+  --color-ink-dim: #626d66;
+  --color-accent: #19754e;
+  --color-on-accent: #ffffff;
+  --color-warn: #8a5a0f;
+}
+
+/* Índigo: lavender on bluish greys. */
+[data-palette="indigo"][data-theme="dark"] {
+  --color-ground: #15151c;
+  --color-surface: #1f1f28;
+  --color-raised: #292933;
+  --color-tile: #41414e;
+  --color-ink: #f4f4fb;
+  --color-ink-muted: #a5a5b3;
+  --color-ink-dim: #9696a5;
+  --color-accent: #9092ff;
+  --color-on-accent: #13132a;
+  --color-warn: #e5a83c;
+}
+
+[data-palette="indigo"][data-theme="light"] {
+  --color-ground: #edecf3;
+  --color-surface: #f5f5f9;
+  --color-raised: #ffffff;
+  --color-tile: #e0dfea;
+  --color-ink: #1b1b25;
+  --color-ink-muted: #565566;
+  --color-ink-dim: #666577;
+  --color-accent: #4b44d6;
+  --color-on-accent: #ffffff;
+  --color-warn: #8a5a0f;
+}
+
+/* Lima: acid lime on olive greys. Warn moves to coral here: amber sits too
+   close to lime to tell apart. The dark pair repeats the @theme defaults so
+   it can be scoped inside another theme. */
+[data-palette="lima"][data-theme="dark"] {
+  --color-ground: #161713;
+  --color-surface: #20211c;
+  --color-raised: #2a2b25;
+  --color-tile: #43443c;
+  --color-ink: #f7f7f0;
+  --color-ink-muted: #a7a89c;
+  --color-ink-dim: #98998d;
+  --color-accent: #c5ef5a;
+  --color-on-accent: #171a0c;
+  --color-warn: #ff9a62;
+}
+
+[data-palette="lima"][data-theme="light"] {
+  --color-ground: #efefe6;
+  --color-surface: #f6f6f0;
+  --color-raised: #ffffff;
+  --color-tile: #e2e2d6;
+  --color-ink: #1c1d17;
+  --color-ink-muted: #595a4f;
+  --color-ink-dim: #686a5e;
+  --color-accent: #44710b;
+  --color-on-accent: #ffffff;
+  --color-warn: #a4481a;
+}
+
+/* Ámbar: amber on sand greys. Warn moves to coral: the accent already owns
+   amber. */
+[data-palette="ambar"][data-theme="dark"] {
+  --color-ground: #181612;
+  --color-surface: #22201b;
+  --color-raised: #2c2a24;
+  --color-tile: #46433b;
+  --color-ink: #faf7f0;
+  --color-ink-muted: #aba69b;
+  --color-ink-dim: #9c978c;
+  --color-accent: #ffb547;
+  --color-on-accent: #1c1405;
+  --color-warn: #ff7b6b;
+}
+
+[data-palette="ambar"][data-theme="light"] {
+  --color-ground: #f0ece3;
+  --color-surface: #f7f4ee;
+  --color-raised: #ffffff;
+  --color-tile: #e6e0d4;
+  --color-ink: #1f1c16;
+  --color-ink-muted: #5e584d;
+  --color-ink-dim: #6e685c;
+  --color-accent: #95560a;
+  --color-on-accent: #ffffff;
+  --color-warn: #b3362a;
+}
+
+/* Cielo: sky blue on bluish greys. */
+[data-palette="cielo"][data-theme="dark"] {
+  --color-ground: #12171a;
+  --color-surface: #1b2125;
+  --color-raised: #252c30;
+  --color-tile: #3b454b;
+  --color-ink: #f2f6f9;
+  --color-ink-muted: #9ea9b0;
+  --color-ink-dim: #8e9aa1;
+  --color-accent: #62caff;
+  --color-on-accent: #041824;
+  --color-warn: #e5a83c;
+}
+
+[data-palette="cielo"][data-theme="light"] {
+  --color-ground: #e7eff4;
+  --color-surface: #f1f6fa;
+  --color-raised: #ffffff;
+  --color-tile: #d8e3ea;
+  --color-ink: #171e22;
+  --color-ink-muted: #4e5b63;
+  --color-ink-dim: #5d6b73;
+  --color-accent: #0068a7;
+  --color-on-accent: #ffffff;
+  --color-warn: #8a5a0f;
+}
+
+/* Orquídea: orchid pink on mauve greys. */
+[data-palette="orquidea"][data-theme="dark"] {
+  --color-ground: #191518;
+  --color-surface: #241e22;
+  --color-raised: #2f292d;
+  --color-tile: #494046;
+  --color-ink: #f8f4f7;
+  --color-ink-muted: #ada3aa;
+  --color-ink-dim: #9f949b;
+  --color-accent: #f187d0;
+  --color-on-accent: #20101a;
+  --color-warn: #e5a83c;
+}
+
+[data-palette="orquidea"][data-theme="light"] {
+  --color-ground: #f3ebf0;
+  --color-surface: #f9f4f7;
+  --color-raised: #ffffff;
+  --color-tile: #e8dee4;
+  --color-ink: #201a1e;
+  --color-ink-muted: #60555c;
+  --color-ink-dim: #71656c;
+  --color-accent: #a32a7a;
+  --color-on-accent: #ffffff;
+  --color-warn: #8a5a0f;
+}
+
+/* Coral: coral on rosy greys. Warn stays amber: the accent owns coral. */
+[data-palette="coral"][data-theme="dark"] {
+  --color-ground: #1a1514;
+  --color-surface: #251f1d;
+  --color-raised: #302927;
+  --color-tile: #4b403f;
+  --color-ink: #f9f4f4;
+  --color-ink-muted: #b0a4a1;
+  --color-ink-dim: #a19592;
+  --color-accent: #ff7f6c;
+  --color-on-accent: #23100d;
+  --color-warn: #e5a83c;
+}
+
+[data-palette="coral"][data-theme="light"] {
+  --color-ground: #f4ebea;
+  --color-surface: #faf4f3;
+  --color-raised: #ffffff;
+  --color-tile: #eadedc;
+  --color-ink: #221a19;
+  --color-ink-muted: #635553;
+  --color-ink-dim: #736562;
+  --color-accent: #b6341f;
+  --color-on-accent: #ffffff;
+  --color-warn: #8a5a0f;
+}
+
+/* Grafito: the grey one. Pure neutrals with a silver accent in the dark and a
+   charcoal one on paper; only warn keeps a hue, so it still stands out. */
+[data-palette="grafito"][data-theme="dark"] {
+  --color-ground: #161616;
+  --color-surface: #202020;
+  --color-raised: #2b2b2b;
+  --color-tile: #434343;
+  --color-ink: #f6f6f6;
+  --color-ink-muted: #a7a7a7;
+  --color-ink-dim: #989898;
+  --color-accent: #d4d4d4;
+  --color-on-accent: #161616;
+  --color-warn: #e5a83c;
+}
+
+[data-palette="grafito"][data-theme="light"] {
+  --color-ground: #eeeeee;
+  --color-surface: #f5f5f5;
+  --color-raised: #ffffff;
+  --color-tile: #e1e1e1;
+  --color-ink: #1c1c1c;
+  --color-ink-muted: #595959;
+  --color-ink-dim: #686868;
+  --color-accent: #333333;
+  --color-on-accent: #ffffff;
+  --color-warn: #8a5a0f;
+}
+
+/* ==========================================================================
+   Grain
+   ========================================================================== */
+
+/* Grain as a background layer: the noise is the first entry in
+   `background-image`, sitting above whatever follows. */
+@utility grain {
+  background-image: var(--noise);
+  background-size: var(--noise-tile) var(--noise-tile);
+  background-repeat: repeat;
+}
+
+/* Grain as an overlay, for elements that already own their background-image
+   or need the strength dialled per instance (`--noise-strength`). */
+@utility grain-overlay {
+  position: relative;
+  isolation: isolate;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: inherit;
+    background-image: var(--noise);
+    background-size: var(--noise-tile) var(--noise-tile);
+    background-repeat: repeat;
+    opacity: var(--noise-strength, 1);
+  }
+}
+
+/* ==========================================================================
+   Surfaces — borderless by construction
+   ========================================================================== */
+
+@utility panel {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-panel);
+}
+
+/* Accent-tinted panel, the quiet one. Derived from the active palette, so
+   every theme gets its own tint without new tokens. Pair with nothing: the
+   grain is already its first layer. */
+@utility panel-accent {
+  border-radius: var(--radius-panel);
+  background-image:
+    var(--noise),
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--color-accent) 10%, var(--color-surface)),
+      color-mix(in oklab, var(--color-accent) 16%, var(--color-surface))
+    );
+  background-size: var(--noise-tile) var(--noise-tile), auto;
+  background-repeat: repeat, no-repeat;
+}
+
+/* Floating action bar that follows a long form. */
+@utility action-bar {
+  position: sticky;
+  bottom: 1.5rem;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-panel);
+  box-shadow:
+    0 10px 15px -3px --alpha(#000 / 20%),
+    0 4px 6px -4px --alpha(#000 / 20%);
+}
+
+/* The logo's hexagon: Fragua's badge, so the two marks read as one family. A
+   regular pointy-top hexagon with circular corner fillets of r = 0.32 R, in a
+   viewBox that is the rounded shape's exact bounds, so `contain` fills the box
+   edge to edge and `aspect-ratio` keeps it honest. Masked over currentColor,
+   so `text-accent` paints it in every theme. The favicon draws the same path
+   (lib/brand-icon.ts); a test keeps them equal. */
+@utility logo-badge {
+  display: inline-grid;
+  place-items: center;
+  aspect-ratio: 86.6 / 95.05;
+  background-color: currentColor;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 86.60 95.05'%3E%3Cpath d='M35.30 2.14A16 16 0 0 1 51.30 2.14L78.60 17.91A16 16 0 0 1 86.60 31.76L86.60 63.29A16 16 0 0 1 78.60 77.14L51.30 92.91A16 16 0 0 1 35.30 92.91L8.00 77.14A16 16 0 0 1 -0.00 63.29L0.00 31.76A16 16 0 0 1 8.00 17.91Z'/%3E%3C/svg%3E");
+  mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
+}
+
+/* Icon tile: the small rounded square that carries a glyph. */
+@utility tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-tile);
+  background-color: var(--color-tile);
+  background-image: var(--noise);
+  background-size: var(--noise-tile) var(--noise-tile);
+}
+
+/* ==========================================================================
+   Details
+   ========================================================================== */
+
+/* A 1px rule that costs no layout and no border. */
+@utility hairline-b {
+  box-shadow: 0 1px 0 0 --alpha(var(--color-ink) / 10%);
+}
+
+@utility hairline-t {
+  box-shadow: inset 0 1px 0 0 --alpha(var(--color-ink) / 8%);
+}
+
+/* Lucide's default 2px stroke reads chunky on these grounds; the whole system
+   steps down to 1.5. Set it once here — never hand-tune strokeWidth. */
+@utility icon {
+  stroke-width: 1.5;
+  flex: none;
+}
+
+/* Numbers that get compared — tables, durations, chart ticks — sit in
+   tabular figures, so columns align and digits don't jitter. */
+@utility digits {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Titles and the big numbers, poster-style: ultra-condensed, heavy, tight.
+   Big Shoulders has no tabular figures, so a number that ticks gives every
+   digit its own cell (see features/time/components/clock-tiles.tsx). */
+@utility poster {
+  font-family: var(--font-poster);
+  font-weight: 900;
+  line-height: 0.85;
+  letter-spacing: -0.01em;
+}
+
+/* Opening motion for floating menus: a state change, not a show. */
+@utility menu-pop {
+  animation: menu-pop 120ms var(--ease-signature);
+}
+
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-pop {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  html {
+    /* Custom look over the native scrollbar: thin, tinted with the ladder. */
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-tile) transparent;
+  }
+
+  body {
+    background-color: var(--color-ground);
+    background-image: var(--noise);
+    background-size: var(--noise-tile) var(--noise-tile);
+    background-repeat: repeat;
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  /* Focus rings are never removed. They follow the accent, which clears the
+     3:1 non-text floor on every ground. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: --alpha(var(--color-accent) / 30%);
+  }
+
+  /* Tailwind v4 dropped `cursor: pointer` on buttons. It's restored here, in
+     the base, not class by class: a rule you must remember on every button is
+     a rule that gets forgotten. Truly disabled controls stay out. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  [role="radio"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}

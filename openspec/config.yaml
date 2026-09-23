@@ -1,0 +1,77 @@
+schema: spec-driven
+
+project: tracking-horas
+
+status: greenfield
+
+context: |
+  Status: Greenfield — no code exists yet (only .atl/ skill registry present).
+  Planned stack (NOT detected, confirm in sdd-design): Next.js App Router, React, TypeScript, Tailwind CSS, pnpm.
+  Reference only: sibling project Fragua (Next 16.3.4, React 19.2, pnpm) — do not read or modify it.
+  Testing: no runner yet. Strict TDD Mode intended; sdd-apply must set up the test runner before feature code.
+  VCS: not a git repository. Do not run `git init` or any state-changing git command.
+  Delivery: single-pr strategy — sdd-apply requires a recorded size:exception before large batches.
+
+stack:
+  status: planned_not_detected
+  framework: "Next.js (App Router)"
+  ui: React
+  language: TypeScript
+  styling: "Tailwind CSS"
+  package_manager: "pnpm (likely)"
+  reference_project: "C:\\Users\\corbo\\Desktop\\AIMBIT\\Fragua\\fragua (Next 16.3.4, React 19.2, pnpm) — reference only, do not read/modify"
+  note: "Final choices are confirmed during sdd-design, not assumed here."
+
+vcs:
+  is_git_repo: false
+  note: "Do not run `git init` or any state-changing git command. The orchestrator will request user permission when it is time to initialize version control."
+
+execution:
+  mode: interactive
+  delivery_strategy: single-pr
+  note: "single-pr means sdd-apply needs a recorded size:exception before large batches — see Review Workload Guard in sdd-phase-common.md."
+
+testing:
+  strict_tdd: true
+  status: no_test_runner_yet
+  runner: "TBD — set up in the first implementation tasks (e.g., Vitest for unit/integration, Playwright for e2e)"
+  layers:
+    unit: "planned — Vitest"
+    integration: "planned — Vitest + Testing Library"
+    e2e: "planned — Playwright"
+  coverage:
+    available: false
+    command: ""
+  quality_tools:
+    linter: "TBD (likely ESLint per Next.js convention)"
+    type_checker: "TBD (tsc — TypeScript is planned)"
+    formatter: "TBD (likely Prettier)"
+  note: "sdd-apply MUST set up the test runner before any feature code. Strict TDD Mode is active for this project."
+
+rules:
+  proposal:
+    - Confirm scope explicitly — greenfield project, no existing code or specs to preserve
+    - Include rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Confirm final stack choices (Next.js App Router, React, TypeScript, Tailwind CSS, pnpm) before locking architecture
+    - Document architecture decisions with rationale
+    - Include sequence diagrams for complex flows
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - First task batch MUST set up the test runner (e.g., Vitest, Playwright) before any feature code
+  apply:
+    - Follow existing code patterns once established; the first batch establishes scaffolding conventions
+    - Strict TDD Mode is ACTIVE — follow RED-GREEN-REFACTOR once the test runner exists
+    - Set up the test runner FIRST if it does not exist yet
+    tdd: true
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas

@@ -1,0 +1,14 @@
+# Native packages ship prebuilt binaries as optional dependencies, so their
+# install scripts (source-build fallbacks) stay off unless something breaks.
+allowBuilds:
+  '@parcel/watcher': false
+  '@prisma/engines': true
+  '@swc/core': false
+  esbuild: true
+  prisma: true
+  sharp: false
+  unrs-resolver: false
+
+# pnpm skips the project's own pre/post scripts by default. Without this,
+# a future `postinstall` (e.g. `prisma generate`) never runs on a fresh clone.
+enablePrePostScripts: true

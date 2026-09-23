@@ -1,0 +1,271 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../generated/prisma"
+  // Native partial indexes (Prisma 7.4+), so migrations know about the
+  // "one running timer per user" index instead of trying to drop it.
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// Better Auth core tables. Their shape must match what Better Auth expects.
+// =============================================================================
+
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  // IANA zone used to bucket days and weeks for this person. Written by server
+  // code only: never declare it in Better Auth's additionalFields.
+  timeZone String @default("America/Argentina/Buenos_Aires")
+
+  // The theme picked in Settings, so it follows the person to any device.
+  // Null means no choice yet: the default theme applies. Keys match lib/theme.ts.
+  palette   String?
+  themeMode String?
+
+  // Where the person left the guided tour (features/guide/tour.ts). Null means
+  // they never touched it, so it starts on its own on the home page; past the
+  // last step means finished.
+  tourStep Int?
+
+  sessions           Session[]
+  accounts           Account[]
+  memberships        WorkspaceMember[]
+  projectMemberships ProjectMember[]
+  timeEntries        TimeEntry[]
+  invitationsSent    Invitation[]      @relation("InvitedBy")
+  timerSession       TimerSession?
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+// =============================================================================
+// Workspaces and access
+//
+// Two levels, fixed roles: a workspace role (ADMIN manages everything) and a
+// project role (TRACKER logs time, VIEWER only reads). Roles are data;
+// what each role may do is code (features/access/permissions.ts).
+// =============================================================================
+
+enum WorkspaceRole {
+  ADMIN
+  MEMBER
+}
+
+enum MemberStatus {
+  ACTIVE
+  PENDING
+  REJECTED
+}
+
+enum ProjectRole {
+  TRACKER
+  VIEWER
+}
+
+model Workspace {
+  id        String   @id @default(uuid(7))
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members     WorkspaceMember[]
+  invitations Invitation[]
+  projects    Project[]
+}
+
+// A person's place in a workspace. PENDING is an access request waiting for
+// an admin; it grants nothing. The data model allows several workspaces per
+// person; the UI shows a switcher only once someone has more than one.
+model WorkspaceMember {
+  id          String        @id @default(uuid(7))
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        WorkspaceRole @default(MEMBER)
+  status      MemberStatus  @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+// An admin's pre-approval: whoever signs in with this Google email joins the
+// workspace as ACTIVE with this role. Emails are stored normalized
+// (trimmed, lowercase).
+model Invitation {
+  id          String        @id @default(uuid(7))
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  email       String
+  role        WorkspaceRole @default(MEMBER)
+  invitedById String?
+  invitedBy   User?         @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime      @default(now())
+  acceptedAt  DateTime?
+
+  projects InvitationProject[]
+
+  @@unique([workspaceId, email])
+  @@index([email])
+}
+
+// A project picked on the invitation. When the invitation is accepted, each
+// row becomes a ProjectMember with this role, so the person lands straight in
+// their projects. Applied once: later changes on the board are never undone.
+model InvitationProject {
+  invitationId String
+  invitation   Invitation  @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  projectId    String
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role         ProjectRole @default(TRACKER)
+
+  @@id([invitationId, projectId])
+  @@index([projectId])
+}
+
+// =============================================================================
+// Projects and time
+// =============================================================================
+
+model Project {
+  id          String    @id @default(uuid(7))
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  // Key into the closed set of project colors used by charts.
+  color       String
+  // Archived instead of deleted, so history is never lost.
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  members       ProjectMember[]
+  invitations   InvitationProject[]
+  timeEntries   TimeEntry[]
+  timerSessions TimerSession[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId, archivedAt])
+}
+
+model ProjectMember {
+  projectId String
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      ProjectRole @default(TRACKER)
+  createdAt DateTime    @default(now())
+
+  @@id([projectId, userId])
+  @@index([userId])
+}
+
+enum EntrySource {
+  TIMER
+  MANUAL
+}
+
+// One uninterrupted block of work. Pausing closes the entry and resuming opens
+// a new one, so every row is one editable unit and totals are a plain SUM.
+//
+// Two guarantees live in the database, not just in code:
+// - at most one running entry (endedAt IS NULL) per user: the partial unique
+//   index below
+// - endedAt is after startedAt whenever it is set: a CHECK constraint added in
+//   the initial migration (Prisma doesn't model CHECK constraints)
+model TimeEntry {
+  id          String      @id @default(uuid(7))
+  userId      String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String
+  // Restrict: projects with history are archived, never deleted.
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  description String      @default("")
+  // timestamptz, not Prisma's default `timestamp`: weekly totals bucket with
+  // `AT TIME ZONE`, which only converts correctly from a zoned timestamp.
+  startedAt   DateTime    @db.Timestamptz(3)
+  endedAt     DateTime?   @db.Timestamptz(3)
+  source      EntrySource @default(TIMER)
+  // Set whenever times are changed after the fact, so metrics stay honest.
+  editedAt    DateTime?   @db.Timestamptz(3)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([userId], where: raw("\"endedAt\" IS NULL"), map: "TimeEntry_one_running_per_user")
+  @@index([userId, startedAt])
+  @@index([projectId, startedAt])
+}
+
+// The timer's task across pauses: one per person. Pausing closes the running
+// block, as always; the session remembers the task and the seconds its blocks
+// already added up, so the clock resumes from there instead of from zero,
+// until the person finishes the task. The blocks remain the truth for every
+// total and metric: this only drives the clock.
+model TimerSession {
+  userId      String    @id
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  description String    @default("")
+  // Seconds from the blocks this task already closed.
+  doneSeconds Int       @default(0)
+  // Set while paused: when the last block closed.
+  pausedAt    DateTime? @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt
+
+  @@index([projectId])
+}
