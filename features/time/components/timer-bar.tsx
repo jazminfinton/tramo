@@ -225,7 +225,10 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
         />
       </div>
 
-      <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+      {/* A phone stacks the clock over its buttons, both centered; from md
+          there's room for one row, the buttons at the end, level with the
+          tiles (the padding clears the unit names). */}
+      <div className="flex flex-col items-center gap-4 md:flex-row md:items-end md:gap-6">
         <ClockTiles
           ms={elapsed}
           state={clockState}
@@ -234,7 +237,7 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
           className="text-[clamp(3.5rem,17vw,6.5rem)]"
         />
 
-        <div className="ml-auto flex items-center gap-2 pb-6">
+        <div className="flex items-center gap-2 md:ml-auto md:pb-6">
           {pip.supported && (
             <HexButton
               tone="ghost"
@@ -252,10 +255,12 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
         </div>
       </div>
 
-      <p className="flex min-w-0 items-center gap-2 text-sm text-ink-dim">{detail}</p>
+      <p className="flex min-w-0 items-center justify-center-safe gap-2 text-sm text-ink-dim md:justify-start">
+        {detail}
+      </p>
 
       {error && (
-        <p role="alert" className="text-sm text-warn">
+        <p role="alert" className="text-center text-sm text-warn md:text-left">
           {t(`errors.${error as "generic"}`)}
         </p>
       )}
