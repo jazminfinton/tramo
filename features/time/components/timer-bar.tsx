@@ -231,7 +231,7 @@ export function TimerBar({ projects, tasks, timer, suggestions, serverNow }: Tim
             icon: <ProjectDot color={project.color} />,
           }))}
         />
-        <TaskPicker tasks={tasks} value={task?.id ?? ""} onChange={setTask} />
+        <TaskPicker data-tour="timer-task" tasks={tasks} value={task?.id ?? ""} onChange={setTask} />
         <Autocomplete
           label={t("description")}
           value={description}

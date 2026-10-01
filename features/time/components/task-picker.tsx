@@ -18,6 +18,8 @@ type TaskPickerProps = {
   onChange: (task: SharedTask | null) => void;
   /** With a name, the picked id travels in a hidden input, like any form field. */
   name?: string;
+  /** Marks the picker for the guided tour (features/guide/tour.ts). */
+  "data-tour"?: string;
   className?: string;
 };
 
@@ -35,7 +37,7 @@ const ICON_BUTTON =
  * The text field isn't a form of its own, so the picker can live inside one
  * (the entry dialog): Enter in it never submits what's around.
  */
-export function TaskPicker({ tasks, value, onChange, name, className = "" }: TaskPickerProps) {
+export function TaskPicker({ tasks, value, onChange, name, "data-tour": tourKey, className = "" }: TaskPickerProps) {
   const t = useTranslations("tasks");
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState("");
@@ -118,7 +120,7 @@ export function TaskPicker({ tasks, value, onChange, name, className = "" }: Tas
   }
 
   return (
-    <span className={`flex min-w-0 flex-col gap-2 ${className}`}>
+    <span data-tour={tourKey} className={`flex min-w-0 flex-col gap-2 ${className}`}>
       {name !== undefined && <input type="hidden" name={name} value={value} />}
 
       {creating ? (

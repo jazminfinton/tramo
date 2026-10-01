@@ -474,7 +474,11 @@
       },
       "timer": {
         "title": "Elegí, escribí y dale play",
-        "body": "Elegí el proyecto y una tarea del equipo, o escribí en qué vas a trabajar, y dale play. Pausalo y reanudalo cuando quieras: el reloj sigue desde donde quedó. Con el cuadrado terminás la tarea."
+        "body": "Elegí el proyecto, decí en qué vas a trabajar y dale play. Pausalo y reanudalo cuando quieras: sigue siendo el mismo tramo, y el tiempo en pausa no cuenta. Con el cuadrado terminás la tarea."
+      },
+      "tasks": {
+        "title": "Tareas del equipo",
+        "body": "Es la lista de tareas que comparte todo el equipo. Elegí una o creala con “Nueva tarea…”: queda disponible para todos. Abajo sumás el detalle con tus palabras; las dos cosas son opcionales."
       },
       "popOut": {
         "title": "El reloj, siempre a la vista",
@@ -482,7 +486,7 @@
       },
       "recent": {
         "title": "Tus últimos tramos",
-        "body": "Acá quedan tus tramos de trabajo. Con el lápiz corregís uno; con el tacho lo borrás."
+        "body": "Acá quedan tus tramos de trabajo. Con el lápiz corregís uno o lo pasás a una tarea del equipo; con el tacho lo borrás."
       },
       "weekAdd": {
         "title": "¿Te olvidaste de darle play?",
