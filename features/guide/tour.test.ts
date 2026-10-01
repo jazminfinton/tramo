@@ -1,14 +1,39 @@
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { resumeIndex, tourStatus, tourSteps } from "@/features/guide/tour";
 
 const ids = (...args: Parameters<typeof tourSteps>) => tourSteps(...args).map((step) => step.id);
 
+const EVERYONE = (["tracker", "observer", "unassigned"] as const).flatMap((persona) => [
+  { persona, isAdmin: false },
+  { persona, isAdmin: true },
+]);
+
+/** Every `data-tour` key the screens mark, read from their source. */
+function markedKeys(): Set<string> {
+  const keys = new Set<string>();
+  for (const folder of ["app", "components", "features"]) {
+    const root = path.resolve(process.cwd(), folder);
+    for (const file of readdirSync(root, { recursive: true, encoding: "utf8" })) {
+      if (!file.endsWith(".tsx")) continue;
+      const source = readFileSync(path.join(root, file), "utf8");
+      for (const [, value = ""] of source.matchAll(/data-tour="([^"]+)"/g)) {
+        for (const key of value.split(/\s+/)) keys.add(key);
+      }
+    }
+  }
+  return keys;
+}
+
 describe("tourSteps", () => {
-  it("walks a tracker from the timer to their week, metrics and settings", () => {
+  it("walks a tracker from the timer and the team's tasks to their week, metrics and settings", () => {
     expect(ids({ persona: "tracker", isAdmin: false })).toEqual([
       "welcome",
       "timer",
+      "tasks",
       "popOut",
       "recent",
       "weekAdd",
@@ -23,6 +48,7 @@ describe("tourSteps", () => {
     expect(ids({ persona: "tracker", isAdmin: true })).toEqual([
       "welcome",
       "timer",
+      "tasks",
       "popOut",
       "recent",
       "weekAdd",
@@ -56,6 +82,19 @@ describe("tourSteps", () => {
       "settings",
       "help",
     ]);
+  });
+
+  it("shows the team's tasks right where they're picked, in the timer", () => {
+    const steps = tourSteps({ persona: "tracker", isAdmin: false });
+
+    expect(steps.find((step) => step.id === "tasks")).toEqual({ id: "tasks", path: "/", targets: ["timer-task"] });
+  });
+
+  it("only points at things a screen marks", () => {
+    const marked = markedKeys();
+    const targets = new Set(EVERYONE.flatMap((who) => tourSteps(who).flatMap((step) => step.targets)));
+
+    expect([...targets].filter((key) => !marked.has(key))).toEqual([]);
   });
 
   it("starts every tour at home, and ends it where the person is, on the help button", () => {

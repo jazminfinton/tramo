@@ -218,6 +218,160 @@ describe("updateEntry", () => {
       reason: "cannotTrack",
     });
   });
+
+  it("keeps a block's pauses when its times change, and refuses a span they don't fit in", async () => {
+    const entry = await db.prisma.timeEntry.create({
+      data: {
+        userId: ana,
+        projectId: projectA,
+        startedAt: at("2026-09-23T12:00:00Z"),
+        endedAt: at("2026-09-23T14:00:00Z"),
+        pausedSeconds: 1800,
+      },
+    });
+
+    expect(await change(entry.id, actor(ana), "2026-09-23T12:00:00Z", "2026-09-23T13:00:00Z")).toEqual({ ok: true });
+    expect(await db.prisma.timeEntry.findUniqueOrThrow({ where: { id: entry.id } })).toMatchObject({
+      endedAt: at("2026-09-23T13:00:00Z"),
+      pausedSeconds: 1800,
+    });
+
+    expect(await change(entry.id, actor(ana), "2026-09-23T12:00:00Z", "2026-09-23T12:30:00Z")).toEqual({
+      ok: false,
+      reason: "pausesTooLong",
+    });
+  });
+
+  it("leaves the times alone when the person didn't touch them", async () => {
+    // A task paused overnight: 26 hours from play to stop, which the form's
+    // day and two times can't express. Renaming it must not shorten it.
+    const entry = await db.prisma.timeEntry.create({
+      data: {
+        userId: ana,
+        projectId: projectA,
+        startedAt: at("2026-09-22T20:00:30Z"),
+        endedAt: at("2026-09-23T22:00:45Z"),
+        pausedSeconds: 82_800,
+      },
+    });
+
+    expect(
+      await updateEntry(db.prisma, {
+        actor: actor(ana),
+        workspaceId,
+        entryId: entry.id,
+        projectId: projectA,
+        description: "Renombrado",
+        startedAt: at("2026-09-22T20:00:00Z"),
+        endedAt: at("2026-09-22T22:00:00Z"),
+        keepTimes: true,
+      }),
+    ).toEqual({ ok: true });
+
+    const updated = await db.prisma.timeEntry.findUniqueOrThrow({ where: { id: entry.id } });
+    expect(updated).toMatchObject({
+      description: "Renombrado",
+      startedAt: at("2026-09-22T20:00:30Z"),
+      endedAt: at("2026-09-23T22:00:45Z"),
+      pausedSeconds: 82_800,
+    });
+    expect(updated.editedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("blocks on a shared task", () => {
+  let taskId: string;
+  let theirs: string;
+
+  beforeEach(async () => {
+    taskId = (await db.prisma.task.create({ data: { workspaceId, name: "Daily", nameKey: "daily" } })).id;
+    const other = await db.prisma.workspace.create({ data: { name: "Other" } });
+    theirs = (await db.prisma.task.create({ data: { workspaceId: other.id, name: "Daily", nameKey: "daily" } })).id;
+  });
+
+  const block = { startedAt: at("2026-09-23T12:00:00Z"), endedAt: at("2026-09-23T13:00:00Z") };
+
+  it("files a manual block under a shared task", async () => {
+    expect(
+      await createManualEntry(db.prisma, {
+        actor: actor(ana),
+        workspaceId,
+        projectId: projectA,
+        description: "",
+        taskId,
+        ...block,
+      }),
+    ).toEqual({ ok: true });
+
+    expect(await db.prisma.timeEntry.findFirstOrThrow()).toMatchObject({ taskId });
+  });
+
+  it("moves a block that already exists onto a shared task, and off it again", async () => {
+    const entry = await anaEntry("2026-09-23T12:00:00Z", "2026-09-23T13:00:00Z");
+    const edit = (task: string | null) =>
+      updateEntry(db.prisma, {
+        actor: actor(ana),
+        workspaceId,
+        entryId: entry.id,
+        projectId: projectA,
+        description: "Landing",
+        taskId: task,
+        ...block,
+        keepTimes: true,
+      });
+
+    expect(await edit(taskId)).toEqual({ ok: true });
+    expect(await db.prisma.timeEntry.findUniqueOrThrow({ where: { id: entry.id } })).toMatchObject({
+      taskId,
+      description: "Landing",
+    });
+
+    expect(await edit(null)).toEqual({ ok: true });
+    expect(await db.prisma.timeEntry.findUniqueOrThrow({ where: { id: entry.id } })).toMatchObject({ taskId: null });
+  });
+
+  it("leaves the shared task alone when the edit doesn't mention it", async () => {
+    const entry = await db.prisma.timeEntry.create({
+      data: { userId: ana, projectId: projectA, taskId, ...block },
+    });
+
+    await updateEntry(db.prisma, {
+      actor: actor(ana),
+      workspaceId,
+      entryId: entry.id,
+      projectId: projectA,
+      description: "Editado",
+      ...block,
+    });
+
+    expect(await db.prisma.timeEntry.findUniqueOrThrow({ where: { id: entry.id } })).toMatchObject({ taskId });
+  });
+
+  it("refuses a task that isn't this workspace's", async () => {
+    expect(
+      await createManualEntry(db.prisma, {
+        actor: actor(ana),
+        workspaceId,
+        projectId: projectA,
+        description: "",
+        taskId: theirs,
+        ...block,
+      }),
+    ).toEqual({ ok: false, reason: "unknownTask" });
+
+    const entry = await anaEntry("2026-09-23T12:00:00Z", "2026-09-23T13:00:00Z");
+    expect(
+      await updateEntry(db.prisma, {
+        actor: actor(ana),
+        workspaceId,
+        entryId: entry.id,
+        projectId: projectA,
+        description: "",
+        taskId: theirs,
+        ...block,
+      }),
+    ).toEqual({ ok: false, reason: "unknownTask" });
+  });
 });
 
 describe("deleteEntry", () => {

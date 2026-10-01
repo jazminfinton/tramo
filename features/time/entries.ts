@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { PrismaClient } from "@/generated/prisma/client";
+import { taskInWorkspace } from "@/features/time/tasks";
 
 /**
  * Manual blocks: adding time after the fact, fixing it, deleting it.
@@ -12,11 +13,18 @@ import type { PrismaClient } from "@/generated/prisma/client";
  * - A person can't have two blocks at the same time, a running timer
  *   included: overlapping blocks would count the same hour twice.
  * - A running block belongs to the timer and isn't edited here.
+ * - A block keeps the pauses its timer measured: editing its times changes
+ *   its span, never its paused time, so the span has to leave time worked.
+ * - A block can sit under one of its workspace's shared tasks, next to its
+ *   free-text description. Any block can be moved onto one, or off it, later.
  */
 
 export type EntryResult =
   | { ok: true }
-  | { ok: false; reason: "notFound" | "forbidden" | "cannotTrack" | "overlap" | "running" };
+  | {
+      ok: false;
+      reason: "notFound" | "forbidden" | "cannotTrack" | "unknownTask" | "overlap" | "running" | "pausesTooLong";
+    };
 
 type Actor = { userId: string; isAdmin: boolean };
 type Tx = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
@@ -58,12 +66,16 @@ export async function createManualEntry(
     workspaceId: string;
     projectId: string;
     description: string;
+    /** The shared task the block belongs to, if any. */
+    taskId?: string | null;
     startedAt: Date;
     endedAt: Date;
   },
 ): Promise<EntryResult> {
+  const taskId = input.taskId ?? null;
   return db.$transaction(async (tx) => {
     if (!(await tracks(tx, input.actor.userId, input.projectId, input.workspaceId))) return fail("cannotTrack");
+    if (!(await taskInWorkspace(tx, taskId, input.workspaceId))) return fail("unknownTask");
 
     await lockPerson(tx, input.actor.userId);
     if (await overlaps(tx, input.actor.userId, input.startedAt, input.endedAt)) return fail("overlap");
@@ -72,6 +84,7 @@ export async function createManualEntry(
       data: {
         userId: input.actor.userId,
         projectId: input.projectId,
+        taskId,
         description: input.description,
         startedAt: input.startedAt,
         endedAt: input.endedAt,
@@ -90,33 +103,50 @@ export async function updateEntry(
     entryId: string;
     projectId: string;
     description: string;
+    /** The shared task to move the block to, or null to take it off one. Left out: the block keeps its own. */
+    taskId?: string | null;
     startedAt: Date;
     endedAt: Date;
+    /**
+     * The person didn't touch the times (see showsSameTimes): the block keeps
+     * its own instants, and `startedAt` / `endedAt` above are ignored.
+     */
+    keepTimes?: boolean;
   },
 ): Promise<EntryResult> {
   return db.$transaction(async (tx) => {
     const entry = await tx.timeEntry.findFirst({
       where: { id: input.entryId, project: { workspaceId: input.workspaceId } },
-      select: { id: true, userId: true, endedAt: true },
+      select: { id: true, userId: true, endedAt: true, pausedSeconds: true },
     });
     if (!entry) return fail("notFound");
     if (entry.userId !== input.actor.userId && !input.actor.isAdmin) return fail("forbidden");
     if (entry.endedAt === null) return fail("running");
     // The block stays its owner's: the owner has to be able to track the target project.
     if (!(await tracks(tx, entry.userId, input.projectId, input.workspaceId))) return fail("cannotTrack");
+    if (!(await taskInWorkspace(tx, input.taskId ?? null, input.workspaceId))) return fail("unknownTask");
+
+    const what = {
+      projectId: input.projectId,
+      taskId: input.taskId, // left out: the block keeps its own
+      description: input.description,
+      editedAt: new Date(),
+    };
+    if (input.keepTimes) {
+      await tx.timeEntry.update({ where: { id: entry.id }, data: what });
+      return ok;
+    }
+
+    // The pauses stay: the new span has to leave time worked once they're out.
+    const span = input.endedAt.getTime() - input.startedAt.getTime();
+    if (span <= entry.pausedSeconds * 1000) return fail("pausesTooLong");
 
     await lockPerson(tx, entry.userId);
     if (await overlaps(tx, entry.userId, input.startedAt, input.endedAt, entry.id)) return fail("overlap");
 
     await tx.timeEntry.update({
       where: { id: entry.id },
-      data: {
-        projectId: input.projectId,
-        description: input.description,
-        startedAt: input.startedAt,
-        endedAt: input.endedAt,
-        editedAt: new Date(),
-      },
+      data: { ...what, startedAt: input.startedAt, endedAt: input.endedAt },
     });
     return ok;
   });

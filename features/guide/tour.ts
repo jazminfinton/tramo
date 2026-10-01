@@ -16,6 +16,7 @@ export type TourStepId =
   | "welcomeUnassigned"
   | "welcomeAdmin"
   | "timer"
+  | "tasks"
   | "popOut"
   | "recent"
   | "weekAdd"
@@ -45,6 +46,7 @@ const step = (id: TourStepId, path: Route | null, ...targets: string[]): TourSte
 const TRACKER = [
   step("welcome", "/"),
   step("timer", "/", "timer"),
+  step("tasks", "/", "timer-task"),
   step("popOut", "/", "timer-pop-out"),
   step("recent", "/", "recent-entries"),
   step("weekAdd", "/week", "week-add"),

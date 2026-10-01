@@ -3,22 +3,25 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { Avatar } from "@/components/common/avatar";
 import { WeekHeader } from "@/features/time/components/week-header";
 import type { TeamWeekData } from "@/features/time/queries";
+import { entryTitle } from "@/features/time/task-text";
 import type { TeamEntry } from "@/features/time/team";
+import { workedMs } from "@/features/time/worked";
 import { formatClock, formatHours } from "@/lib/duration";
 import { zonedDateKey, zonedInstant } from "@/lib/zoned";
 
 /** One block of the team's week, read-only: who, what, where and when. */
 async function TeamEntryRow({ entry }: { entry: TeamEntry }) {
   const [t, format] = await Promise.all([getTranslations("timer.recent"), getFormatter()]);
-  const running = entry.endedAt === null;
-  const endedAt = entry.endedAt ?? entry.startedAt;
+  // A paused block stands at its pause; one that runs has no end to show yet.
+  const endedAt = entry.endedAt ?? entry.pausedAt;
+  const pausedMinutes = Math.round(entry.pausedSeconds / 60);
 
   return (
     <li className="flex items-center gap-3 px-4 py-2.5 not-first:hairline-t">
       <Avatar name={entry.user.name} size="sm" />
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm">
-          {entry.description || <span className="text-ink-dim">{t("noDescription")}</span>}
+          {entryTitle(entry) || <span className="text-ink-dim">{t("noDescription")}</span>}
         </span>
         <span className="flex min-w-0 items-center gap-1.5 text-xs text-ink-dim">
           <span className="truncate">{entry.user.name}</span>
@@ -32,15 +35,18 @@ async function TeamEntryRow({ entry }: { entry: TeamEntry }) {
           <span aria-hidden>·</span>
           <span className="flex-none">
             {format.dateTime(entry.startedAt, { timeStyle: "short" })}–
-            {running ? t("now") : format.dateTime(endedAt, { timeStyle: "short" })}
+            {endedAt ? format.dateTime(endedAt, { timeStyle: "short" }) : t("now")}
+            {pausedMinutes > 0 ? ` · ${t("pauses", { duration: formatHours(pausedMinutes) })}` : ""}
             {entry.source === "MANUAL" || entry.editedAt ? ` · ${t("edited")}` : ""}
           </span>
         </span>
       </div>
-      {running ? (
-        <span className="flex-none rounded-pill bg-accent/15 px-2 py-0.5 font-display text-xs text-accent">{t("running")}</span>
+      {entry.endedAt ? (
+        <span className="digits flex-none text-sm">{formatClock(workedMs(entry, entry.endedAt))}</span>
       ) : (
-        <span className="digits flex-none text-sm">{formatClock(endedAt.getTime() - entry.startedAt.getTime())}</span>
+        <span className="flex-none rounded-pill bg-accent/15 px-2 py-0.5 font-display text-xs text-accent">
+          {entry.pausedAt ? t("onPause") : t("running")}
+        </span>
       )}
     </li>
   );

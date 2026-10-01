@@ -11,9 +11,11 @@ import {
   type EditableEntry,
   type EntryDialogProject,
 } from "@/features/time/components/entry-dialog";
+import type { SharedTask } from "@/features/time/tasks";
 
 type Shared = {
   projects: EntryDialogProject[];
+  tasks: SharedTask[];
   suggestions: Record<string, string[]>;
   timeZone: string;
 };

@@ -25,9 +25,12 @@ export function listTeamEntries(
       description: true,
       startedAt: true,
       endedAt: true,
+      pausedAt: true,
+      pausedSeconds: true,
       source: true,
       editedAt: true,
       project: { select: { name: true, color: true } },
+      task: { select: { name: true } },
       user: { select: { id: true, name: true } },
     },
   });

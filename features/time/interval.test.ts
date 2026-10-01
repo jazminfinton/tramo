@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildInterval } from "@/features/time/interval";
+import { buildInterval, showsSameTimes } from "@/features/time/interval";
 
 const AR = "America/Argentina/Buenos_Aires";
 const now = new Date("2026-09-24T12:00:00Z");
@@ -48,5 +48,30 @@ describe("buildInterval", () => {
       ok: false,
       errors: { date: "invalidDate", start: "invalidStart", end: "invalidEnd" },
     });
+  });
+});
+
+describe("showsSameTimes", () => {
+  // 09:00:30 to 10:30:45 in Buenos Aires: the form shows it as 09:00 and 10:30.
+  const entry = { startedAt: new Date("2026-09-23T12:00:30Z"), endedAt: new Date("2026-09-23T13:30:45Z") };
+
+  it("recognizes the entry's own day and times, seconds aside", () => {
+    expect(showsSameTimes(entry, { date: "2026-09-23", start: "09:00", end: "10:30" }, AR)).toBe(true);
+  });
+
+  it("notices any field that changed", () => {
+    expect(showsSameTimes(entry, { date: "2026-09-22", start: "09:00", end: "10:30" }, AR)).toBe(false);
+    expect(showsSameTimes(entry, { date: "2026-09-23", start: "09:15", end: "10:30" }, AR)).toBe(false);
+    expect(showsSameTimes(entry, { date: "2026-09-23", start: "09:00", end: "11:00" }, AR)).toBe(false);
+  });
+
+  it("holds for a block longer than a day, which the form can't spell out", () => {
+    const overnight = { startedAt: new Date("2026-09-22T23:00:00Z"), endedAt: new Date("2026-09-24T01:00:00Z") };
+
+    expect(showsSameTimes(overnight, { date: "2026-09-22", start: "20:00", end: "22:00" }, AR)).toBe(true);
+  });
+
+  it("is false for times it can't read", () => {
+    expect(showsSameTimes(entry, { date: "2026-09-23", start: "", end: "10:30" }, AR)).toBe(false);
   });
 });

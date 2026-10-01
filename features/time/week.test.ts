@@ -45,6 +45,25 @@ describe("bucketWeek", () => {
     expect(week.dayTotals[3]).toBe(60);
   });
 
+  it("leaves a block's pauses out of its minutes", () => {
+    const paused = { ...entry("a", "2026-09-21T12:00:00Z", "2026-09-21T14:00:00Z"), pausedSeconds: 1800 };
+    const week = bucketWeek([paused], days, AR, now);
+
+    expect(week.byKey.get("a")).toEqual([90, 0, 0, 0, 0, 0, 0]);
+    expect(week.total).toBe(90);
+  });
+
+  it("counts a paused block up to its pause, not up to now", () => {
+    const paused = {
+      ...entry("a", "2026-09-24T14:00:00Z", null),
+      pausedAt: new Date("2026-09-24T14:20:00Z"),
+      pausedSeconds: 300,
+    };
+    const week = bucketWeek([paused], days, AR, now);
+
+    expect(week.dayTotals[3]).toBe(15);
+  });
+
   it("groups by any key, such as the person, for the team's week", () => {
     const byPerson = [
       { ...entry("a", "2026-09-21T12:00:00Z", "2026-09-21T13:00:00Z"), userId: "ana" },

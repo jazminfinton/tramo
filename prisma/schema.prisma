@@ -44,6 +44,7 @@ model User {
   timeEntries        TimeEntry[]
   invitationsSent    Invitation[]      @relation("InvitedBy")
   timerSession       TimerSession?
+  tasksCreated       Task[]            @relation("TaskCreatedBy")
 }
 
 model Session {
@@ -123,6 +124,7 @@ model Workspace {
   members     WorkspaceMember[]
   invitations Invitation[]
   projects    Project[]
+  tasks       Task[]
 }
 
 // A person's place in a workspace. PENDING is an access request waiting for
@@ -214,47 +216,78 @@ model ProjectMember {
   @@index([userId])
 }
 
+// A task the whole workspace shares, so everyone logs the same work under the
+// same name. Anyone who tracks time can add one. An entry may point at one;
+// its free-text description stays next to it, for the detail.
+model Task {
+  id          String    @id @default(uuid(7))
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  // The name as it is compared: lowercase, single spaces. It keeps "Daily" and
+  // "daily" from becoming two tasks (see features/time/tasks.ts).
+  nameKey     String
+  createdById String?
+  createdBy   User?     @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  timeEntries TimeEntry[]
+
+  @@unique([workspaceId, nameKey])
+}
+
 enum EntrySource {
   TIMER
   MANUAL
 }
 
-// One uninterrupted block of work. Pausing closes the entry and resuming opens
-// a new one, so every row is one editable unit and totals are a plain SUM.
+// One task's time, from play to stop: a single row, however many times it was
+// paused. A pause doesn't close the entry; it's measured (pausedAt while it
+// lasts, pausedSeconds once it's over) and left out of the time worked, which
+// is the span minus pausedSeconds (features/time/worked.ts).
 //
-// Two guarantees live in the database, not just in code:
-// - at most one running entry (endedAt IS NULL) per user: the partial unique
-//   index below
-// - endedAt is after startedAt whenever it is set: a CHECK constraint added in
-//   the initial migration (Prisma doesn't model CHECK constraints)
+// These guarantees live in the database, not just in code:
+// - at most one open entry (endedAt IS NULL) per user, running or paused: the
+//   partial unique index below
+// - endedAt is after startedAt whenever it is set, only an open entry can be
+//   paused, and a finished entry has time worked left after its pauses: CHECK
+//   constraints added in the migrations (Prisma doesn't model them)
 model TimeEntry {
-  id          String      @id @default(uuid(7))
-  userId      String
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId   String
+  id            String      @id @default(uuid(7))
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId     String
   // Restrict: projects with history are archived, never deleted.
-  project     Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  description String      @default("")
+  project       Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  description   String      @default("")
+  // The shared task this time went to, if the person picked one. SetNull: a
+  // task that goes away leaves its entries with their description.
+  taskId        String?
+  task          Task?       @relation(fields: [taskId], references: [id], onDelete: SetNull)
   // timestamptz, not Prisma's default `timestamp`: weekly totals bucket with
   // `AT TIME ZONE`, which only converts correctly from a zoned timestamp.
-  startedAt   DateTime    @db.Timestamptz(3)
-  endedAt     DateTime?   @db.Timestamptz(3)
-  source      EntrySource @default(TIMER)
+  startedAt     DateTime    @db.Timestamptz(3)
+  endedAt       DateTime?   @db.Timestamptz(3)
+  // While the timer is paused: when the pause began. Only an open entry has it.
+  pausedAt      DateTime?   @db.Timestamptz(3)
+  // Seconds spent paused so far, the pause in course aside.
+  pausedSeconds Int         @default(0)
+  source        EntrySource @default(TIMER)
   // Set whenever times are changed after the fact, so metrics stay honest.
-  editedAt    DateTime?   @db.Timestamptz(3)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  editedAt      DateTime?   @db.Timestamptz(3)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   @@unique([userId], where: raw("\"endedAt\" IS NULL"), map: "TimeEntry_one_running_per_user")
   @@index([userId, startedAt])
   @@index([projectId, startedAt])
+  @@index([taskId])
 }
 
-// The timer's task across pauses: one per person. Pausing closes the running
-// block, as always; the session remembers the task and the seconds its blocks
-// already added up, so the clock resumes from there instead of from zero,
-// until the person finishes the task. The blocks remain the truth for every
-// total and metric: this only drives the clock.
+// RETIRED. It held the timer's task across pauses when pausing still closed the
+// entry. A paused entry now stays open and carries its own pause, so nothing
+// reads or writes this table. It stays one release, so the code that's live
+// while this change deploys keeps working; a later migration drops it.
 model TimerSession {
   userId      String    @id
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)

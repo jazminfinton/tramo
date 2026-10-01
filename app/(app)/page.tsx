@@ -39,6 +39,7 @@ export default async function HomePage() {
         {canTrack ? (
           <TimerBar
             projects={data.projects}
+            tasks={data.tasks}
             timer={data.timer}
             suggestions={data.suggestions}
             serverNow={data.serverNow}
@@ -70,6 +71,7 @@ export default async function HomePage() {
           <RecentEntries
             entries={data.recent}
             projects={data.projects}
+            tasks={data.tasks}
             suggestions={data.suggestions}
             timeZone={timeZone}
           />

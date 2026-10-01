@@ -57,13 +57,27 @@ A minimalist, orderly web app to track time per person, per project, and per tas
 - **Decided: floating mini-timer** through the Document Picture-in-Picture API. It's an always-on-top window opened from the web app, with no install.
   - Browser support (verified in MDN browser-compat-data, 2026-09-22): Chrome 116+, Edge (same as Chrome), and Firefox 151+ on desktop. No support in Safari or any mobile browser. Use feature detection and fall back to the in-page timer.
   - Constraints: HTTPS only, opened from a user gesture, one window per tab, closes when the opener tab closes, no navigation inside it, and the site can't set its position.
-- **Decided: the server is the source of truth.** The running entry stores `startedAt`. Elapsed time is always `now - startedAt`, never a client-side counter. Closing the window or tab never stops or loses time. A timer started on the phone can be stopped on the computer.
-- **Business rule:** at most one running timer per user. Starting a new one stops the previous one.
+- **Decided: the server is the source of truth.** The open entry stores `startedAt` and its pauses. Elapsed time is always computed from them and the server's clock, never a client-side counter. Closing the window or tab never stops or loses time. A timer started on the phone can be stopped on the computer.
+- **Business rule:** at most one open timer per user, running or paused. Starting a different task ends the previous one.
 - Play, pause, and resume at will.
-  - **Decided (2026-09-24):** pausing is a real pause. The clock stops where it is and resuming goes on from there; a separate "finish" ends the task and takes the clock back to zero. Blocks stay the truth (a pause still closes the running block, a resume opens a new one); a per-person `TimerSession` only remembers the task and the seconds it added up.
+  - **Decided (2026-09-24):** pausing is a real pause. The clock stops where it is and resuming goes on from there; a separate "finish" ends the task and takes the clock back to zero.
+  - **Decided (2026-09-30), replacing the first model:** a task is one record, from play to stop. At first a pause closed the running block and a resume opened a new one, so one task left a record per stretch; the owner found that wrong: pausing should not register anything, only stop should. Now the entry stays open across pauses and measures them (`pausedAt` while one lasts, `pausedSeconds` once it's over), and the time worked is the span minus the pauses. Consequences:
+    - A task finished while paused ends at the moment it was paused.
+    - A block's row shows its start, its end and how long it was paused.
+    - Editing a block's times keeps its pauses, so the new span has to leave time worked. Times left untouched are kept as stored, so a task paused overnight keeps its real span.
+    - A block still counts on the day it started, so a task paused overnight counts there whole.
+    - Records created before this change stay as they were, one per stretch.
   - **Decided:** the clock reads in solid blocks, hours / minutes / seconds, each named below (like a flip clock); the floating window stands upright unless it's very flat.
 - Each entry has who, project, a free-text task description, start, and end.
   - **Decided:** the task description is free text, with autocomplete from the user's own past descriptions (per project). This keeps "fix login" and "Fix Login" from splitting the metrics.
+  - **Decided (2026-09-30): shared tasks.** The owner asked for tasks the whole team can pick, so everyone says what they're working on faster and under the same name. Each workspace has a list of them:
+    - Anyone who tracks time can add a task, from the same dropdown they pick from. Admins can too.
+    - Names are unique in the workspace, whatever their case. Adding a name that exists picks the existing task.
+    - A shared task is optional and lives next to the free text, which stays for the detail. An entry can have a task, free text, both or neither.
+    - Any entry that already exists can be moved onto a shared task, or off it, from the edit dialog.
+    - A task belongs to the workspace, not to a project: "Daily" is the same task everywhere.
+    - Metrics still rank tasks per project: by the shared task's name when the entry has one, by its free text otherwise.
+    - Renaming and removing tasks is left for later.
 - **Decided (v1): manual entry and editing.** People can add or fix time when they forgot the timer. Manually created or edited entries are flagged, so the metrics stay honest.
 - **Decided (v1): forgotten-timer alert.** When a timer has run for 8 hours, the app warns the user and asks them to confirm or fix it.
 
@@ -180,6 +194,7 @@ These override any recommendation in `exploration.md` that conflicts with them.
 | Editing past entries | **No time limit.** Everyone can edit their own entries anytime, and admins can edit anyone's. Every manual creation or edit is flagged |
 | Manual time input | **Time selectors** (changed from a smart free-text field after the first week of use: typing "18:00 o 1h30" didn't convince the owner). Start and end are picked from lists on a quarter-hour grid, like a calendar; each end option shows the resulting duration, an end before the start means the next day, and changing the start keeps the duration. Typing still jumps to a time ("930", "18"). The server keeps parsing "HH:MM", so the contract didn't change |
 | Multiple workspaces | **Allowed by the data model from day 1.** A user can belong to several workspaces. The workspace switcher UI stays hidden until a user has more than one |
+| Shared tasks | **A list per workspace** (added 2026-09-30). Anyone who tracks time adds to it from the task dropdown. A task is optional on an entry, next to its free text, and isn't tied to a project |
 
 **Defaults set by the orchestrator** (the owner can correct them during the proposal review):
 
@@ -189,7 +204,7 @@ These override any recommendation in `exploration.md` that conflicts with them.
 | Entries crossing midnight or a week boundary | The whole entry counts toward the day and week it started |
 | Cross-device sync | Refetch on focus and `visibilitychange`, plus light polling only while a running timer is visible |
 | Rejected users | They can request access again later, and the admin sees a new pending request |
-| Pause/resume model | Separate closed time entries, one per segment. A Postgres partial unique index enforces one running timer per user |
+| Pause/resume model | One entry per task, open across pauses, which it measures and leaves out of the time worked (revised 2026-09-30; at first, one closed entry per segment). A Postgres partial unique index enforces one open timer per user |
 | Week and time zone | Weeks start on Monday (ISO). Each user has an IANA time zone, default `America/Argentina/Buenos_Aires`. Aggregation happens in SQL with `AT TIME ZONE` |
 
 ## Brand and look (decided 2026-09-24)

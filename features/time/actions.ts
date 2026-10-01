@@ -11,15 +11,20 @@ import type { ActionResult } from "@/lib/form";
 // The clock that counts is the server's (`new Date()` here), never a time the
 // client sends: nobody can backdate a timer through these actions.
 
-export async function startTimerAction(projectId: string, description: string): Promise<ActionResult> {
+export async function startTimerAction(
+  projectId: string,
+  description: string,
+  taskId: string | null,
+): Promise<ActionResult> {
   const { user, workspace } = await requireMember();
-  const parsed = startTimerSchema.safeParse({ projectId, description });
+  const parsed = startTimerSchema.safeParse({ projectId, description, taskId });
   if (!parsed.success) return { error: "invalid" };
 
   const result = await startTimer(prisma, {
     userId: user.id,
     workspaceId: workspace.id,
     projectId: parsed.data.projectId,
+    taskId: parsed.data.taskId,
     description: parsed.data.description,
     now: new Date(),
   });
