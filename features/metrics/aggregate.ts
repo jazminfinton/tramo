@@ -8,15 +8,18 @@ import { Prisma, type PrismaClient } from "@/generated/prisma/client";
  *
  * Shared rules, the same as the week view:
  * - a block belongs to the range (and the week) where it STARTED;
- * - a running block counts up to `now`;
+ * - a block counts for the time worked in it: its span minus its pauses. A
+ *   running one counts up to `now`, a paused one up to its pause (the same
+ *   sum as features/time/worked.ts, in SQL);
  * - only the projects in `projectIds` count — the caller passes the ones the
  *   viewer may see (transparency per project).
  */
 
 export type MetricsScope = { projectIds: string[]; start: Date; end: Date; now: Date };
 
-const minutes = (now: Date) =>
-  Prisma.sql`SUM(EXTRACT(EPOCH FROM (COALESCE(e."endedAt", ${now}) - e."startedAt")) / 60)::float8`;
+const minutes = (now: Date) => Prisma.sql`SUM(GREATEST(0,
+  EXTRACT(EPOCH FROM (COALESCE(e."endedAt", e."pausedAt", ${now}) - e."startedAt")) - e."pausedSeconds"
+) / 60)::float8`;
 
 const where = (scope: MetricsScope) => Prisma.sql`
   e."projectId" = ANY(${scope.projectIds})

@@ -100,3 +100,71 @@ describe("entries end after they start", () => {
     ).rejects.toThrow(/TimeEntry_ends_after_start/);
   });
 });
+
+describe("pauses inside an entry", () => {
+  it("lets an open entry be paused, and keeps the paused time once it's over", async () => {
+    const user = await createUser(db, "ana@test.dev");
+    const entry = await db.prisma.timeEntry.create({
+      data: { userId: user.id, projectId, startedAt: at("2026-09-21T10:00:00Z"), pausedAt: at("2026-09-21T10:30:00Z") },
+    });
+
+    await expect(
+      db.prisma.timeEntry.update({
+        where: { id: entry.id },
+        data: { pausedAt: null, pausedSeconds: 900, endedAt: at("2026-09-21T12:00:00Z") },
+      }),
+    ).resolves.toMatchObject({ pausedSeconds: 900 });
+  });
+
+  it("rejects a pause on a finished entry", async () => {
+    const user = await createUser(db, "ana@test.dev");
+
+    await expect(
+      db.prisma.timeEntry.create({
+        data: {
+          userId: user.id,
+          projectId,
+          startedAt: at("2026-09-21T10:00:00Z"),
+          endedAt: at("2026-09-21T11:00:00Z"),
+          pausedAt: at("2026-09-21T10:30:00Z"),
+        },
+      }),
+    ).rejects.toThrow(/TimeEntry_paused_only_while_open/);
+  });
+
+  it("rejects a pause that begins before the entry", async () => {
+    const user = await createUser(db, "ana@test.dev");
+
+    await expect(
+      db.prisma.timeEntry.create({
+        data: { userId: user.id, projectId, startedAt: at("2026-09-21T10:00:00Z"), pausedAt: at("2026-09-21T09:00:00Z") },
+      }),
+    ).rejects.toThrow(/TimeEntry_paused_only_while_open/);
+  });
+
+  it("rejects negative paused time", async () => {
+    const user = await createUser(db, "ana@test.dev");
+
+    await expect(
+      db.prisma.timeEntry.create({
+        data: { userId: user.id, projectId, startedAt: at("2026-09-21T10:00:00Z"), pausedSeconds: -1 },
+      }),
+    ).rejects.toThrow(/TimeEntry_paused_seconds_not_negative/);
+  });
+
+  it("rejects a finished entry whose pauses leave no time worked", async () => {
+    const user = await createUser(db, "ana@test.dev");
+
+    await expect(
+      db.prisma.timeEntry.create({
+        data: {
+          userId: user.id,
+          projectId,
+          startedAt: at("2026-09-21T10:00:00Z"),
+          endedAt: at("2026-09-21T11:00:00Z"),
+          pausedSeconds: 3600,
+        },
+      }),
+    ).rejects.toThrow(/TimeEntry_worked_time_positive/);
+  });
+});

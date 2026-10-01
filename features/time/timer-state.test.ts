@@ -3,53 +3,54 @@ import { describe, expect, it } from "vitest";
 import { clockParts, elapsedMs, timerState } from "@/features/time/timer-state";
 
 const project = { name: "Web", color: "blue" };
-const block = { projectId: "p1", description: "Login", startedAt: new Date("2026-09-24T12:00:00Z"), project };
-const session = { projectId: "p1", description: "Login", doneSeconds: 600, project };
+const entry = {
+  projectId: "p1",
+  description: "Login",
+  startedAt: new Date("2026-09-24T12:00:00Z"),
+  pausedAt: null,
+  pausedSeconds: 0,
+  project,
+};
 
 describe("timerState", () => {
-  it("runs, adding what the task already did", () => {
-    expect(timerState(block, session)).toEqual({
+  it("runs while the open entry isn't paused", () => {
+    expect(timerState({ ...entry, pausedSeconds: 600 })).toEqual({
       state: "running",
       projectId: "p1",
       description: "Login",
       startedAt: "2026-09-24T12:00:00.000Z",
-      doneSeconds: 600,
+      pausedAt: null,
+      pausedSeconds: 600,
       projectName: "Web",
       projectColor: "blue",
     });
   });
 
-  it("runs from zero when the session belongs to another task, or there's none", () => {
-    expect(timerState(block, { ...session, description: "Otra" })?.doneSeconds).toBe(0);
-    expect(timerState(block, null)?.doneSeconds).toBe(0);
-  });
-
-  it("is paused when only the session is left", () => {
-    expect(timerState(null, session)).toEqual({
+  it("is paused while the open entry carries a pause", () => {
+    expect(timerState({ ...entry, pausedAt: new Date("2026-09-24T12:20:00Z") })).toMatchObject({
       state: "paused",
-      projectId: "p1",
-      description: "Login",
-      startedAt: null,
-      doneSeconds: 600,
-      projectName: "Web",
-      projectColor: "blue",
+      startedAt: "2026-09-24T12:00:00.000Z",
+      pausedAt: "2026-09-24T12:20:00.000Z",
     });
   });
 
-  it("is idle with neither", () => {
-    expect(timerState(null, null)).toBeNull();
+  it("is idle with nothing open", () => {
+    expect(timerState(null)).toBeNull();
   });
 });
 
 describe("elapsedMs", () => {
-  const now = new Date("2026-09-24T12:05:00Z").getTime();
+  const now = new Date("2026-09-24T12:30:00Z").getTime();
 
-  it("adds the running block to what the task already did", () => {
-    expect(elapsedMs(timerState(block, session), now)).toBe(600_000 + 300_000);
+  it("is the time since play, minus the pauses", () => {
+    expect(elapsedMs(timerState({ ...entry, pausedSeconds: 600 }), now)).toBe(20 * 60_000);
   });
 
   it("stands still while paused, and is zero when idle", () => {
-    expect(elapsedMs(timerState(null, session), now)).toBe(600_000);
+    const paused = timerState({ ...entry, pausedAt: new Date("2026-09-24T12:20:00Z"), pausedSeconds: 300 });
+
+    expect(elapsedMs(paused, now)).toBe(15 * 60_000);
+    expect(elapsedMs(paused, now + 3_600_000)).toBe(15 * 60_000);
     expect(elapsedMs(null, now)).toBe(0);
   });
 });

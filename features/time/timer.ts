@@ -4,34 +4,50 @@ import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 
 /**
  * The timer's rules, against the database. The server is the source of truth:
- * a running timer is just an entry without `endedAt`, so closing the tab or
+ * a task being timed is just an entry without `endedAt`, so closing the tab or
  * the floating window never stops or loses time, and any device sees it.
  *
- * Pausing closes the running entry; resuming starts a new entry with the same
- * project and description, so every row is one editable block. The person's
- * TimerSession remembers the task and the seconds its blocks added up, so the
- * clock resumes from there, until the task is finished.
+ * A task is one entry from play to stop. Pausing doesn't close it: the entry
+ * stays open with `pausedAt` set, and resuming adds that pause to
+ * `pausedSeconds`, so the time worked is the span minus the pauses
+ * (features/time/worked.ts). Only stop, or starting a different task, ends it.
  */
 
 export type TimerResult = { ok: true } | { ok: false; reason: "cannotTrack" | "conflict" | "nothingPaused" };
 
 type Tx = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
 
-/**
- * Closes whatever is running at `now`. A block that would end at or before its
- * own start (two clicks in the same millisecond) is dropped instead, since the
- * database refuses an entry that doesn't end after it starts.
- */
-async function closeRunning(tx: Tx, userId: string, now: Date) {
-  const current = await tx.timeEntry.findFirst({ where: { userId, endedAt: null } });
-  if (!current) return null;
+/** A person's open entry, running or paused. The database allows one at most. */
+function openEntry(tx: Tx, userId: string) {
+  return tx.timeEntry.findFirst({ where: { userId, endedAt: null } });
+}
 
-  if (now.getTime() > current.startedAt.getTime()) {
-    await tx.timeEntry.update({ where: { id: current.id }, data: { endedAt: now } });
+/**
+ * Ends whatever is open: at `now` if it runs, at the moment it was paused
+ * otherwise, since no work happened after that. An entry with no time worked
+ * (two clicks in the same instant) is dropped instead: the database refuses
+ * one that doesn't end after it starts.
+ */
+async function closeOpen(tx: Tx, userId: string, now: Date) {
+  const current = await openEntry(tx, userId);
+  if (!current) return;
+
+  const end = current.pausedAt ?? now;
+  const worked = end.getTime() - current.startedAt.getTime() - current.pausedSeconds * 1000;
+  if (worked > 0) {
+    await tx.timeEntry.update({ where: { id: current.id }, data: { endedAt: end, pausedAt: null } });
   } else {
     await tx.timeEntry.delete({ where: { id: current.id } });
   }
-  return { ...current, seconds: Math.max(0, Math.floor((now.getTime() - current.startedAt.getTime()) / 1000)) };
+}
+
+/** Takes an entry out of its pause: the pause's length joins its paused time. */
+function unpause(tx: Tx, entry: { id: string; pausedAt: Date; pausedSeconds: number }, now: Date) {
+  const paused = Math.max(0, Math.round((now.getTime() - entry.pausedAt.getTime()) / 1000));
+  return tx.timeEntry.update({
+    where: { id: entry.id },
+    data: { pausedAt: null, pausedSeconds: entry.pausedSeconds + paused },
+  });
 }
 
 // One timer change at a time per person: a double click, or two devices at
@@ -63,12 +79,15 @@ export async function startTimer(
   try {
     await db.$transaction(async (tx) => {
       await lockPerson(tx, input.userId);
-      const current = await tx.timeEntry.findFirst({ where: { userId: input.userId, endedAt: null } });
+      const current = await openEntry(tx, input.userId);
       if (current && current.projectId === input.projectId && current.description === input.description) {
-        return; // Already running exactly this: a double click, not a new block.
+        // The same task is already open. Running: a double click, nothing to
+        // do. Paused: play goes on with it, in the same entry.
+        if (current.pausedAt) await unpause(tx, { ...current, pausedAt: current.pausedAt }, input.now);
+        return;
       }
 
-      await closeRunning(tx, input.userId, input.now);
+      await closeOpen(tx, input.userId, input.now);
       await tx.timeEntry.create({
         data: {
           userId: input.userId,
@@ -77,9 +96,6 @@ export async function startTimer(
           startedAt: input.now,
         },
       });
-      // A new task: its clock starts from zero.
-      const task = { projectId: input.projectId, description: input.description, doneSeconds: 0, pausedAt: null };
-      await tx.timerSession.upsert({ where: { userId: input.userId }, create: { userId: input.userId, ...task }, update: task });
     });
     return { ok: true };
   } catch (error) {
@@ -93,62 +109,46 @@ export async function startTimer(
 }
 
 /**
- * Pauses the task: the running block closes, and its seconds add up on the
- * session. Nothing running (a double click): nothing to do.
+ * Pauses the task: its entry stays open and remembers when the pause began.
+ * Nothing running, or already paused (a double click): nothing to do.
  */
 export async function pauseTimer(db: PrismaClient, input: { userId: string; now: Date }): Promise<TimerResult> {
   await db.$transaction(async (tx) => {
     await lockPerson(tx, input.userId);
-    const closed = await closeRunning(tx, input.userId, input.now);
-    if (!closed) return;
+    const current = await openEntry(tx, input.userId);
+    if (!current || current.pausedAt) return;
 
-    // A block started before sessions existed has none yet: it starts one.
-    const session = await tx.timerSession.findUnique({ where: { userId: input.userId } });
-    const sameTask = session?.projectId === closed.projectId && session.description === closed.description;
-    const doneSeconds = (sameTask ? session.doneSeconds : 0) + closed.seconds;
-    const task = { projectId: closed.projectId, description: closed.description, doneSeconds, pausedAt: input.now };
-    await tx.timerSession.upsert({ where: { userId: input.userId }, create: { userId: input.userId, ...task }, update: task });
+    // A pause can't begin before its entry (a clock that went backwards).
+    const pausedAt = input.now.getTime() > current.startedAt.getTime() ? input.now : current.startedAt;
+    await tx.timeEntry.update({ where: { id: current.id }, data: { pausedAt } });
   });
   return { ok: true };
 }
 
-/** Resumes the paused task in a new block; its clock goes on from where it was. */
+/** Resumes the paused task: the same entry goes on, and the pause stays out of its time. */
 export async function resumeTimer(
   db: PrismaClient,
   input: { userId: string; workspaceId: string; now: Date },
 ): Promise<TimerResult> {
-  try {
-    return await db.$transaction(async (tx): Promise<TimerResult> => {
-      await lockPerson(tx, input.userId);
-      const session = await tx.timerSession.findUnique({ where: { userId: input.userId } });
-      if (!session) return { ok: false, reason: "nothingPaused" };
-      if (await tx.timeEntry.findFirst({ where: { userId: input.userId, endedAt: null }, select: { id: true } })) {
-        return { ok: true }; // Already running: a double click.
-      }
-      if (!(await canTrackProject(tx, { ...input, projectId: session.projectId }))) {
-        return { ok: false, reason: "cannotTrack" };
-      }
-
-      await tx.timeEntry.create({
-        data: { userId: input.userId, projectId: session.projectId, description: session.description, startedAt: input.now },
-      });
-      await tx.timerSession.update({ where: { userId: input.userId }, data: { pausedAt: null } });
-      return { ok: true };
-    });
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { ok: false, reason: "conflict" };
+  return db.$transaction(async (tx): Promise<TimerResult> => {
+    await lockPerson(tx, input.userId);
+    const current = await openEntry(tx, input.userId);
+    if (!current) return { ok: false, reason: "nothingPaused" };
+    if (!current.pausedAt) return { ok: true }; // Already running: a double click.
+    if (!(await canTrackProject(tx, { ...input, projectId: current.projectId }))) {
+      return { ok: false, reason: "cannotTrack" };
     }
-    throw error;
-  }
+
+    await unpause(tx, { ...current, pausedAt: current.pausedAt }, input.now);
+    return { ok: true };
+  });
 }
 
-/** Finishes the task: the running block (if any) closes and the clock goes back to zero. */
+/** Finishes the task: its entry ends, and the clock goes back to zero. */
 export async function finishTimer(db: PrismaClient, input: { userId: string; now: Date }): Promise<TimerResult> {
   await db.$transaction(async (tx) => {
     await lockPerson(tx, input.userId);
-    await closeRunning(tx, input.userId, input.now);
-    await tx.timerSession.deleteMany({ where: { userId: input.userId } });
+    await closeOpen(tx, input.userId, input.now);
   });
   return { ok: true };
 }

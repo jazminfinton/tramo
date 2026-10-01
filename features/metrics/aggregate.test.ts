@@ -94,6 +94,40 @@ describe("metrics aggregation (real Postgres)", () => {
     ]);
   });
 
+  it("leaves pauses out of every sum, and counts a paused block up to its pause", async () => {
+    await db.prisma.timeEntry.deleteMany();
+    await db.prisma.timeEntry.createMany({
+      data: [
+        // 2 h with half an hour paused: 90 worked.
+        {
+          userId: ana,
+          projectId: projectA,
+          description: "Landing",
+          startedAt: new Date("2026-09-22T12:00:00Z"),
+          endedAt: new Date("2026-09-22T14:00:00Z"),
+          pausedSeconds: 1800,
+        },
+        // Open and paused at 14:20 after 5 min of earlier pauses: 15 worked, whatever `now` says.
+        {
+          userId: beto,
+          projectId: projectA,
+          description: "",
+          startedAt: new Date("2026-09-24T14:00:00Z"),
+          endedAt: null,
+          pausedAt: new Date("2026-09-24T14:20:00Z"),
+          pausedSeconds: 300,
+        },
+      ],
+    });
+
+    expect(await minutesByPerson(db.prisma, scope())).toEqual([
+      { id: ana, name: "Ana", minutes: 90 },
+      { id: beto, name: "Beto", minutes: 15 },
+    ]);
+    expect(await minutesByProject(db.prisma, scope())).toEqual([{ projectId: projectA, minutes: 105 }]);
+    expect(await topTasks(db.prisma, scope(), 5)).toEqual([{ description: "Landing", projectId: projectA, minutes: 90 }]);
+  });
+
   it("returns nothing when no project is visible", async () => {
     expect(await minutesByPerson(db.prisma, { ...scope(), projectIds: [] })).toEqual([]);
   });

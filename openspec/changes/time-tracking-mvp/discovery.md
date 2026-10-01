@@ -57,10 +57,16 @@ A minimalist, orderly web app to track time per person, per project, and per tas
 - **Decided: floating mini-timer** through the Document Picture-in-Picture API. It's an always-on-top window opened from the web app, with no install.
   - Browser support (verified in MDN browser-compat-data, 2026-09-22): Chrome 116+, Edge (same as Chrome), and Firefox 151+ on desktop. No support in Safari or any mobile browser. Use feature detection and fall back to the in-page timer.
   - Constraints: HTTPS only, opened from a user gesture, one window per tab, closes when the opener tab closes, no navigation inside it, and the site can't set its position.
-- **Decided: the server is the source of truth.** The running entry stores `startedAt`. Elapsed time is always `now - startedAt`, never a client-side counter. Closing the window or tab never stops or loses time. A timer started on the phone can be stopped on the computer.
-- **Business rule:** at most one running timer per user. Starting a new one stops the previous one.
+- **Decided: the server is the source of truth.** The open entry stores `startedAt` and its pauses. Elapsed time is always computed from them and the server's clock, never a client-side counter. Closing the window or tab never stops or loses time. A timer started on the phone can be stopped on the computer.
+- **Business rule:** at most one open timer per user, running or paused. Starting a different task ends the previous one.
 - Play, pause, and resume at will.
-  - **Decided (2026-09-24):** pausing is a real pause. The clock stops where it is and resuming goes on from there; a separate "finish" ends the task and takes the clock back to zero. Blocks stay the truth (a pause still closes the running block, a resume opens a new one); a per-person `TimerSession` only remembers the task and the seconds it added up.
+  - **Decided (2026-09-24):** pausing is a real pause. The clock stops where it is and resuming goes on from there; a separate "finish" ends the task and takes the clock back to zero.
+  - **Decided (2026-09-30), replacing the first model:** a task is one record, from play to stop. At first a pause closed the running block and a resume opened a new one, so one task left a record per stretch; the owner found that wrong: pausing should not register anything, only stop should. Now the entry stays open across pauses and measures them (`pausedAt` while one lasts, `pausedSeconds` once it's over), and the time worked is the span minus the pauses. Consequences:
+    - A task finished while paused ends at the moment it was paused.
+    - A block's row shows its start, its end and how long it was paused.
+    - Editing a block's times keeps its pauses, so the new span has to leave time worked. Times left untouched are kept as stored, so a task paused overnight keeps its real span.
+    - A block still counts on the day it started, so a task paused overnight counts there whole.
+    - Records created before this change stay as they were, one per stretch.
   - **Decided:** the clock reads in solid blocks, hours / minutes / seconds, each named below (like a flip clock); the floating window stands upright unless it's very flat.
 - Each entry has who, project, a free-text task description, start, and end.
   - **Decided:** the task description is free text, with autocomplete from the user's own past descriptions (per project). This keeps "fix login" and "Fix Login" from splitting the metrics.
@@ -189,7 +195,7 @@ These override any recommendation in `exploration.md` that conflicts with them.
 | Entries crossing midnight or a week boundary | The whole entry counts toward the day and week it started |
 | Cross-device sync | Refetch on focus and `visibilitychange`, plus light polling only while a running timer is visible |
 | Rejected users | They can request access again later, and the admin sees a new pending request |
-| Pause/resume model | Separate closed time entries, one per segment. A Postgres partial unique index enforces one running timer per user |
+| Pause/resume model | One entry per task, open across pauses, which it measures and leaves out of the time worked (revised 2026-09-30; at first, one closed entry per segment). A Postgres partial unique index enforces one open timer per user |
 | Week and time zone | Weeks start on Monday (ISO). Each user has an IANA time zone, default `America/Argentina/Buenos_Aires`. Aggregation happens in SQL with `AT TIME ZONE` |
 
 ## Brand and look (decided 2026-09-24)

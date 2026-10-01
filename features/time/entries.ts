@@ -12,11 +12,13 @@ import type { PrismaClient } from "@/generated/prisma/client";
  * - A person can't have two blocks at the same time, a running timer
  *   included: overlapping blocks would count the same hour twice.
  * - A running block belongs to the timer and isn't edited here.
+ * - A block keeps the pauses its timer measured: editing its times changes
+ *   its span, never its paused time, so the span has to leave time worked.
  */
 
 export type EntryResult =
   | { ok: true }
-  | { ok: false; reason: "notFound" | "forbidden" | "cannotTrack" | "overlap" | "running" };
+  | { ok: false; reason: "notFound" | "forbidden" | "cannotTrack" | "overlap" | "running" | "pausesTooLong" };
 
 type Actor = { userId: string; isAdmin: boolean };
 type Tx = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
@@ -92,12 +94,17 @@ export async function updateEntry(
     description: string;
     startedAt: Date;
     endedAt: Date;
+    /**
+     * The person didn't touch the times (see showsSameTimes): the block keeps
+     * its own instants, and `startedAt` / `endedAt` above are ignored.
+     */
+    keepTimes?: boolean;
   },
 ): Promise<EntryResult> {
   return db.$transaction(async (tx) => {
     const entry = await tx.timeEntry.findFirst({
       where: { id: input.entryId, project: { workspaceId: input.workspaceId } },
-      select: { id: true, userId: true, endedAt: true },
+      select: { id: true, userId: true, endedAt: true, pausedSeconds: true },
     });
     if (!entry) return fail("notFound");
     if (entry.userId !== input.actor.userId && !input.actor.isAdmin) return fail("forbidden");
@@ -105,18 +112,22 @@ export async function updateEntry(
     // The block stays its owner's: the owner has to be able to track the target project.
     if (!(await tracks(tx, entry.userId, input.projectId, input.workspaceId))) return fail("cannotTrack");
 
+    const what = { projectId: input.projectId, description: input.description, editedAt: new Date() };
+    if (input.keepTimes) {
+      await tx.timeEntry.update({ where: { id: entry.id }, data: what });
+      return ok;
+    }
+
+    // The pauses stay: the new span has to leave time worked once they're out.
+    const span = input.endedAt.getTime() - input.startedAt.getTime();
+    if (span <= entry.pausedSeconds * 1000) return fail("pausesTooLong");
+
     await lockPerson(tx, entry.userId);
     if (await overlaps(tx, entry.userId, input.startedAt, input.endedAt, entry.id)) return fail("overlap");
 
     await tx.timeEntry.update({
       where: { id: entry.id },
-      data: {
-        projectId: input.projectId,
-        description: input.description,
-        startedAt: input.startedAt,
-        endedAt: input.endedAt,
-        editedAt: new Date(),
-      },
+      data: { ...what, startedAt: input.startedAt, endedAt: input.endedAt },
     });
     return ok;
   });

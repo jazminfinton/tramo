@@ -2,7 +2,8 @@ import { getFormatter, getTranslations } from "next-intl/server";
 
 import { EntryRowActions } from "@/features/time/components/entry-buttons";
 import type { EntryDialogProject } from "@/features/time/components/entry-dialog";
-import { formatClock } from "@/lib/duration";
+import { workedMs } from "@/features/time/worked";
+import { formatClock, formatHours } from "@/lib/duration";
 
 export type EntryRowData = {
   id: string;
@@ -10,6 +11,8 @@ export type EntryRowData = {
   description: string;
   startedAt: Date;
   endedAt: Date | null;
+  pausedAt: Date | null;
+  pausedSeconds: number;
   source: "TIMER" | "MANUAL";
   editedAt: Date | null;
   project: { name: string; color: string };
@@ -24,11 +27,15 @@ type EntryRowProps = {
   timeZone: string;
 };
 
-/** One block: project, task, times, duration, and its edit/delete actions. */
+/**
+ * One block: project, task, times, the time worked in it, and its edit/delete
+ * actions. A block still open shows whether it runs or is paused instead.
+ */
 export async function EntryRow({ entry, showDay = false, projects, suggestions, timeZone }: EntryRowProps) {
   const [t, format] = await Promise.all([getTranslations("timer.recent"), getFormatter()]);
-  const running = entry.endedAt === null;
-  const endedAt = entry.endedAt ?? entry.startedAt;
+  // A paused block stands at its pause; one that runs has no end to show yet.
+  const endedAt = entry.endedAt ?? entry.pausedAt;
+  const pausedMinutes = Math.round(entry.pausedSeconds / 60);
   const label = entry.description || entry.project.name;
 
   return (
@@ -47,15 +54,18 @@ export async function EntryRow({ entry, showDay = false, projects, suggestions, 
           {showDay && ` · ${format.dateTime(entry.startedAt, { weekday: "short", day: "numeric", month: "short" })}`}
           {" · "}
           {format.dateTime(entry.startedAt, { timeStyle: "short" })}–
-          {running ? t("now") : format.dateTime(endedAt, { timeStyle: "short" })}
+          {endedAt ? format.dateTime(endedAt, { timeStyle: "short" }) : t("now")}
+          {pausedMinutes > 0 ? ` · ${t("pauses", { duration: formatHours(pausedMinutes) })}` : ""}
           {entry.source === "MANUAL" || entry.editedAt ? ` · ${t("edited")}` : ""}
         </span>
       </div>
-      {running ? (
-        <span className="flex-none rounded-pill bg-accent/15 px-2 py-0.5 font-display text-xs text-accent">{t("running")}</span>
+      {!entry.endedAt ? (
+        <span className="flex-none rounded-pill bg-accent/15 px-2 py-0.5 font-display text-xs text-accent">
+          {entry.pausedAt ? t("onPause") : t("running")}
+        </span>
       ) : (
         <>
-          <span className="digits flex-none text-sm">{formatClock(endedAt.getTime() - entry.startedAt.getTime())}</span>
+          <span className="digits flex-none text-sm">{formatClock(workedMs(entry, entry.endedAt))}</span>
           <EntryRowActions
             projects={projects}
             suggestions={suggestions}
@@ -66,7 +76,8 @@ export async function EntryRow({ entry, showDay = false, projects, suggestions, 
               projectId: entry.projectId,
               description: entry.description,
               startedAt: entry.startedAt.toISOString(),
-              endedAt: endedAt.toISOString(),
+              endedAt: entry.endedAt.toISOString(),
+              pausedSeconds: entry.pausedSeconds,
             }}
           />
         </>

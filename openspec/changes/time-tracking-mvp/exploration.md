@@ -102,6 +102,7 @@ Sources: [Vercel Fair Use Guidelines](https://vercel.com/docs/limits/fair-use-gu
 ### D. Timer domain modeling
 
 - **Pause/resume:** separate closed `TimeEntry` rows, one per segment, not segments embedded in one entry. Metrics need `SUM(end - start) GROUP BY`, which is trivial over rows and painful over JSON. A manual edit touches one row, not an array.
+  - **Superseded (2026-09-30):** the owner wanted one record per task, so an entry now stays open across pauses and carries their total in `pausedSeconds`. The sum stays in plain SQL, `SUM(end - start - pausedSeconds)`, and an edit still touches one row. See discovery.md.
 - **One running timer:** a Postgres partial unique index, `CREATE UNIQUE INDEX ... ON "TimeEntry"(user_id) WHERE ended_at IS NULL`, as the hard backstop. The action still stops the old timer and starts the new one in a single `$transaction`.
 - **Cross-device sync:** refetch on `focus` and `visibilitychange`, plus light polling only while a timer is visible on screen.
   - SSE or realtime give instant consistency, but their cost is out of proportion for 3-10 users.

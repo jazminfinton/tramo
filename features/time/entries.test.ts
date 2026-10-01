@@ -218,6 +218,65 @@ describe("updateEntry", () => {
       reason: "cannotTrack",
     });
   });
+
+  it("keeps a block's pauses when its times change, and refuses a span they don't fit in", async () => {
+    const entry = await db.prisma.timeEntry.create({
+      data: {
+        userId: ana,
+        projectId: projectA,
+        startedAt: at("2026-09-23T12:00:00Z"),
+        endedAt: at("2026-09-23T14:00:00Z"),
+        pausedSeconds: 1800,
+      },
+    });
+
+    expect(await change(entry.id, actor(ana), "2026-09-23T12:00:00Z", "2026-09-23T13:00:00Z")).toEqual({ ok: true });
+    expect(await db.prisma.timeEntry.findUniqueOrThrow({ where: { id: entry.id } })).toMatchObject({
+      endedAt: at("2026-09-23T13:00:00Z"),
+      pausedSeconds: 1800,
+    });
+
+    expect(await change(entry.id, actor(ana), "2026-09-23T12:00:00Z", "2026-09-23T12:30:00Z")).toEqual({
+      ok: false,
+      reason: "pausesTooLong",
+    });
+  });
+
+  it("leaves the times alone when the person didn't touch them", async () => {
+    // A task paused overnight: 26 hours from play to stop, which the form's
+    // day and two times can't express. Renaming it must not shorten it.
+    const entry = await db.prisma.timeEntry.create({
+      data: {
+        userId: ana,
+        projectId: projectA,
+        startedAt: at("2026-09-22T20:00:30Z"),
+        endedAt: at("2026-09-23T22:00:45Z"),
+        pausedSeconds: 82_800,
+      },
+    });
+
+    expect(
+      await updateEntry(db.prisma, {
+        actor: actor(ana),
+        workspaceId,
+        entryId: entry.id,
+        projectId: projectA,
+        description: "Renombrado",
+        startedAt: at("2026-09-22T20:00:00Z"),
+        endedAt: at("2026-09-22T22:00:00Z"),
+        keepTimes: true,
+      }),
+    ).toEqual({ ok: true });
+
+    const updated = await db.prisma.timeEntry.findUniqueOrThrow({ where: { id: entry.id } });
+    expect(updated).toMatchObject({
+      description: "Renombrado",
+      startedAt: at("2026-09-22T20:00:30Z"),
+      endedAt: at("2026-09-23T22:00:45Z"),
+      pausedSeconds: 82_800,
+    });
+    expect(updated.editedAt).toBeInstanceOf(Date);
+  });
 });
 
 describe("deleteEntry", () => {

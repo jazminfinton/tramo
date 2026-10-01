@@ -135,7 +135,8 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
         projectId: selectedProject.id,
         description: normalizedDescription,
         startedAt: serverNowIso(),
-        doneSeconds: 0,
+        pausedAt: null,
+        pausedSeconds: 0,
         projectName: selectedProject.name,
         projectColor: selectedProject.color,
       });
@@ -144,11 +145,12 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
     });
   }
 
+  // The task stays the same one across pauses: pausing notes when it began,
+  // and resuming adds that pause to the time left out of the clock.
   function pause() {
     if (!current) return;
     run(async () => {
-      const doneSeconds = Math.floor(elapsedMs(current, Date.now() + offset.current) / 1000);
-      setCurrent({ ...current, state: "paused", startedAt: null, doneSeconds });
+      setCurrent({ ...current, state: "paused", pausedAt: serverNowIso() });
       return pauseTimerAction();
     });
   }
@@ -156,7 +158,13 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
   function resume() {
     if (!current) return;
     run(async () => {
-      setCurrent({ ...current, state: "running", startedAt: serverNowIso() });
+      const pausedFor = current.pausedAt ? Date.now() + offset.current - new Date(current.pausedAt).getTime() : 0;
+      setCurrent({
+        ...current,
+        state: "running",
+        pausedAt: null,
+        pausedSeconds: current.pausedSeconds + Math.max(0, Math.round(pausedFor / 1000)),
+      });
       setForgottenDismissed(false);
       return resumeTimerAction();
     });
@@ -180,8 +188,8 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
   const primaryAction = { ...primary, disabled: pending || !selectedProject };
   const finishAction = current ? { label: t("finish"), disabled: pending, onClick: finish } : null;
 
-  const forgotten =
-    running && current.startedAt !== null && !forgottenDismissed && isForgotten(new Date(current.startedAt), new Date(now));
+  // Forgotten means running for hours on end; time spent paused doesn't count.
+  const forgotten = running && !forgottenDismissed && isForgotten(new Date(now - elapsed), new Date(now));
 
   const units = { hours: t("units.hours"), minutes: t("units.minutes"), seconds: t("units.seconds") };
 

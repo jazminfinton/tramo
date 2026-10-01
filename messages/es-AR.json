@@ -340,10 +340,12 @@
       "overlap": "Se superpone con otro tramo tuyo. Revisá los horarios.",
       "cannotTrack": "No podés registrar horas en ese proyecto.",
       "forbidden": "Solo podés editar tus propios tramos.",
-      "running": "Ese tramo está corriendo. Pausalo desde el timer para editarlo.",
+      "running": "Ese tramo sigue abierto. Terminalo desde el timer para editarlo.",
       "notFound": "Ese tramo ya no existe. Recargá la página.",
-      "generic": "Algo salió mal. Probá de nuevo."
-    }
+      "generic": "Algo salió mal. Probá de nuevo.",
+      "pausesTooLong": "Este tramo tiene pausas: tiene que durar más que el tiempo que estuvo en pausa."
+    },
+    "lastsWithPauses": "Dura {duration}, sin contar {pauses} en pausa"
   },
   "timer": {
     "title": "Timer",
@@ -374,7 +376,9 @@
       "noDescription": "Sin descripción",
       "edited": "editado",
       "now": "ahora",
-      "running": "En curso"
+      "running": "En curso",
+      "onPause": "En pausa",
+      "pauses": "{duration} en pausa"
     },
     "errors": {
       "cannotTrack": "No podés registrar horas en ese proyecto.",

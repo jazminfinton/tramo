@@ -1,5 +1,5 @@
 import { parseClockTime, parseDuration } from "@/lib/time-input";
-import { isIsoDate, shiftIsoDate, zonedInstant } from "@/lib/zoned";
+import { isIsoDate, shiftIsoDate, zonedDateKey, zonedInstant, zonedMinutesOfDay } from "@/lib/zoned";
 
 /**
  * Turns what someone typed for a manual block (a day, a start time, and an
@@ -57,4 +57,26 @@ export function buildInterval(input: {
   if (endedAt.getTime() > input.now.getTime()) return { ok: false, errors: { end: "future" } };
 
   return { ok: true, startedAt, endedAt, minutes };
+}
+
+/**
+ * Whether the form still shows a block's own day and times, which means the
+ * person didn't touch them. Then the block's instants stay as they are:
+ * rebuilding them from the form would drop its seconds and, for a task paused
+ * overnight, cut it down to the day the form can express.
+ */
+export function showsSameTimes(
+  entry: { startedAt: Date; endedAt: Date },
+  form: { date: string; start: string; end: string },
+  timeZone: string,
+): boolean {
+  const start = parseClockTime(form.start);
+  const end = parseClockTime(form.end);
+  return (
+    start !== null &&
+    end !== null &&
+    form.date === zonedDateKey(entry.startedAt, timeZone) &&
+    start === zonedMinutesOfDay(entry.startedAt, timeZone) &&
+    end === zonedMinutesOfDay(entry.endedAt, timeZone)
+  );
 }

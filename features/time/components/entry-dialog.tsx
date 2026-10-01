@@ -24,6 +24,8 @@ export type EditableEntry = {
   description: string;
   startedAt: string;
   endedAt: string;
+  /** Seconds the timer measured in pauses: they stay out of the time worked. */
+  pausedSeconds: number;
 };
 
 type EntryDialogProps = {
@@ -64,6 +66,10 @@ function initialValues(entry: EditableEntry | undefined, projects: EntryDialogPr
  * quarter-hour grid, like a calendar: each end says how long the block lasts,
  * and an end before the start means the next day. Changing the start keeps
  * the duration. Every block saved here is flagged as manual or edited.
+ *
+ * A block the timer paused keeps its pauses: they show here, and stay out of
+ * its time whatever the new times are. Times left untouched aren't rebuilt
+ * from the form, so a task paused overnight keeps its real span.
  */
 export function EntryDialog(props: EntryDialogProps) {
   const t = useTranslations("entries");
@@ -78,7 +84,8 @@ export function EntryDialog(props: EntryDialogProps) {
 
 function EntryForm({ onClose, entry, projects, suggestions, timeZone }: EntryDialogProps) {
   const t = useTranslations("entries");
-  const [values, setValues] = useState(() => initialValues(entry, projects, timeZone));
+  const [initial] = useState(() => initialValues(entry, projects, timeZone));
+  const [values, setValues] = useState(initial);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [pending, startTransition] = useTransition();
 
@@ -99,8 +106,18 @@ function EntryForm({ onClose, entry, projects, suggestions, timeZone }: EntryDia
     });
   }
 
-  const preview =
-    values.start.trim() && values.end.trim()
+  // The form still shows the block's own day and times: they stay as stored.
+  const untouched =
+    entry !== undefined && values.date === initial.date && values.start === initial.start && values.end === initial.end;
+  const pausedMinutes = Math.round((entry?.pausedSeconds ?? 0) / 60);
+
+  const preview = untouched
+    ? {
+        ok: true as const,
+        endedAt: new Date(entry.endedAt),
+        minutes: Math.round((new Date(entry.endedAt).getTime() - new Date(entry.startedAt).getTime()) / 60_000),
+      }
+    : values.start.trim() && values.end.trim()
       ? buildInterval({ ...values, timeZone, now: new Date() })
       : null;
 
@@ -119,8 +136,11 @@ function EntryForm({ onClose, entry, projects, suggestions, timeZone }: EntryDia
 
     const clientErrors: FieldErrors = {};
     if (!values.projectId) clientErrors.projectId = "projectRequired";
-    const interval = buildInterval({ ...values, timeZone, now: new Date() });
-    if (!interval.ok) Object.assign(clientErrors, interval.errors);
+    if (!untouched) {
+      const interval = buildInterval({ ...values, timeZone, now: new Date() });
+      if (!interval.ok) Object.assign(clientErrors, interval.errors);
+      else if (interval.minutes <= pausedMinutes) clientErrors.end = "pausesTooLong";
+    }
     if (Object.keys(clientErrors).length > 0) {
       setErrors(clientErrors);
       focusFirstInvalid(form, clientErrors);
@@ -258,7 +278,14 @@ function EntryForm({ onClose, entry, projects, suggestions, timeZone }: EntryDia
 
       <p aria-live="polite" className="min-h-5 text-sm text-ink-muted">
         {preview?.ok &&
-          `${t("lasts", { duration: describeDuration(preview.minutes) })}${crossesMidnight ? ` · ${t("nextDay")}` : ""}`}
+          `${
+            pausedMinutes > 0
+              ? t("lastsWithPauses", {
+                  duration: describeDuration(Math.max(0, preview.minutes - pausedMinutes)),
+                  pauses: describeDuration(pausedMinutes),
+                })
+              : t("lasts", { duration: describeDuration(preview.minutes) })
+          }${crossesMidnight ? ` · ${t("nextDay")}` : ""}`}
       </p>
 
       {errors.form && (
