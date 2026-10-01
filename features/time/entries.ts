@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { PrismaClient } from "@/generated/prisma/client";
+import { taskInWorkspace } from "@/features/time/tasks";
 
 /**
  * Manual blocks: adding time after the fact, fixing it, deleting it.
@@ -14,11 +15,16 @@ import type { PrismaClient } from "@/generated/prisma/client";
  * - A running block belongs to the timer and isn't edited here.
  * - A block keeps the pauses its timer measured: editing its times changes
  *   its span, never its paused time, so the span has to leave time worked.
+ * - A block can sit under one of its workspace's shared tasks, next to its
+ *   free-text description. Any block can be moved onto one, or off it, later.
  */
 
 export type EntryResult =
   | { ok: true }
-  | { ok: false; reason: "notFound" | "forbidden" | "cannotTrack" | "overlap" | "running" | "pausesTooLong" };
+  | {
+      ok: false;
+      reason: "notFound" | "forbidden" | "cannotTrack" | "unknownTask" | "overlap" | "running" | "pausesTooLong";
+    };
 
 type Actor = { userId: string; isAdmin: boolean };
 type Tx = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
@@ -60,12 +66,16 @@ export async function createManualEntry(
     workspaceId: string;
     projectId: string;
     description: string;
+    /** The shared task the block belongs to, if any. */
+    taskId?: string | null;
     startedAt: Date;
     endedAt: Date;
   },
 ): Promise<EntryResult> {
+  const taskId = input.taskId ?? null;
   return db.$transaction(async (tx) => {
     if (!(await tracks(tx, input.actor.userId, input.projectId, input.workspaceId))) return fail("cannotTrack");
+    if (!(await taskInWorkspace(tx, taskId, input.workspaceId))) return fail("unknownTask");
 
     await lockPerson(tx, input.actor.userId);
     if (await overlaps(tx, input.actor.userId, input.startedAt, input.endedAt)) return fail("overlap");
@@ -74,6 +84,7 @@ export async function createManualEntry(
       data: {
         userId: input.actor.userId,
         projectId: input.projectId,
+        taskId,
         description: input.description,
         startedAt: input.startedAt,
         endedAt: input.endedAt,
@@ -92,6 +103,8 @@ export async function updateEntry(
     entryId: string;
     projectId: string;
     description: string;
+    /** The shared task to move the block to, or null to take it off one. Left out: the block keeps its own. */
+    taskId?: string | null;
     startedAt: Date;
     endedAt: Date;
     /**
@@ -111,8 +124,14 @@ export async function updateEntry(
     if (entry.endedAt === null) return fail("running");
     // The block stays its owner's: the owner has to be able to track the target project.
     if (!(await tracks(tx, entry.userId, input.projectId, input.workspaceId))) return fail("cannotTrack");
+    if (!(await taskInWorkspace(tx, input.taskId ?? null, input.workspaceId))) return fail("unknownTask");
 
-    const what = { projectId: input.projectId, description: input.description, editedAt: new Date() };
+    const what = {
+      projectId: input.projectId,
+      taskId: input.taskId, // left out: the block keeps its own
+      description: input.description,
+      editedAt: new Date(),
+    };
     if (input.keepTimes) {
       await tx.timeEntry.update({ where: { id: entry.id }, data: what });
       return ok;

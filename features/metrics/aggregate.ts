@@ -53,15 +53,21 @@ export async function minutesByProject(db: PrismaClient, scope: MetricsScope) {
   );
 }
 
+/**
+ * What the time went into, per project. A block under a shared task counts
+ * for that task, whatever detail is written next to it; any other block counts
+ * for its description, and one with neither is left out. Free text that says
+ * the same as a shared task adds up with it.
+ */
 export async function topTasks(db: PrismaClient, scope: MetricsScope, limit: number) {
   if (scope.projectIds.length === 0) return [];
   return round(
-    await db.$queryRaw<{ description: string; projectId: string; minutes: number }[]>`
-      SELECT e.description AS description, e."projectId" AS "projectId", ${minutes(scope.now)} AS minutes
-      FROM "TimeEntry" e
-      WHERE ${where(scope)} AND e.description <> ''
-      GROUP BY e.description, e."projectId"
-      ORDER BY minutes DESC, e.description ASC
+    await db.$queryRaw<{ name: string; projectId: string; minutes: number }[]>`
+      SELECT COALESCE(t.name, e.description) AS name, e."projectId" AS "projectId", ${minutes(scope.now)} AS minutes
+      FROM "TimeEntry" e LEFT JOIN "Task" t ON t.id = e."taskId"
+      WHERE ${where(scope)} AND COALESCE(t.name, e.description) <> ''
+      GROUP BY 1, 2
+      ORDER BY minutes DESC, 1 ASC
       LIMIT ${limit}`,
   );
 }

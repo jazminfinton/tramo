@@ -5,6 +5,8 @@ import { clockParts, elapsedMs, timerState } from "@/features/time/timer-state";
 const project = { name: "Web", color: "blue" };
 const entry = {
   projectId: "p1",
+  taskId: null,
+  task: null,
   description: "Login",
   startedAt: new Date("2026-09-24T12:00:00Z"),
   pausedAt: null,
@@ -17,6 +19,8 @@ describe("timerState", () => {
     expect(timerState({ ...entry, pausedSeconds: 600 })).toEqual({
       state: "running",
       projectId: "p1",
+      taskId: null,
+      taskName: null,
       description: "Login",
       startedAt: "2026-09-24T12:00:00.000Z",
       pausedAt: null,
@@ -31,6 +35,14 @@ describe("timerState", () => {
       state: "paused",
       startedAt: "2026-09-24T12:00:00.000Z",
       pausedAt: "2026-09-24T12:20:00.000Z",
+    });
+  });
+
+  it("carries the shared task the entry sits under", () => {
+    expect(timerState({ ...entry, taskId: "t1", task: { name: "Daily" } })).toMatchObject({
+      taskId: "t1",
+      taskName: "Daily",
+      description: "Login",
     });
   });
 

@@ -118,8 +118,8 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
                         nameHeader={t("tasks.name")}
                         hoursHeader={t("hours")}
                         rows={metrics.tasks.map((task) => ({
-                          key: `${task.projectId}:${task.description}`,
-                          label: task.description,
+                          key: `${task.projectId}:${task.name}`,
+                          label: task.name,
                           sublabel: selectedProject ? undefined : task.projectName,
                           color: task.projectColor,
                           minutes: task.minutes,

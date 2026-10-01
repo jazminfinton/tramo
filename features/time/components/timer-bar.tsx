@@ -13,14 +13,17 @@ import { Modal } from "@/components/common/modal";
 import { finishTimerAction, pauseTimerAction, resumeTimerAction, startTimerAction } from "@/features/time/actions";
 import { ClockTiles } from "@/features/time/components/clock-tiles";
 import { PipTimer } from "@/features/time/components/pip-timer";
+import { TaskPicker } from "@/features/time/components/task-picker";
 import { useDocumentPip } from "@/features/time/components/use-document-pip";
 import type { TimerPageData } from "@/features/time/queries";
 import { DESCRIPTION_MAX } from "@/features/time/schema";
+import type { SharedTask } from "@/features/time/tasks";
 import { elapsedMs, type TimerState } from "@/features/time/timer-state";
 import { formatClock, isForgotten } from "@/lib/duration";
 
 type TimerBarProps = {
   projects: TimerPageData["projects"];
+  tasks: TimerPageData["tasks"];
   timer: TimerPageData["timer"];
   suggestions: TimerPageData["suggestions"];
   serverNow: number;
@@ -58,19 +61,22 @@ function FinishButton({ label, disabled, onClick }: Action) {
 }
 
 /**
- * The timer: project, task, a clock in blocks and its buttons. Play starts the
- * task in the fields; pause stops the clock where it is, and play resumes it
- * from there; the square finishes the task and takes the clock back to zero.
+ * The timer: project, what the work is (one of the team's shared tasks, free
+ * text, or both), a clock in blocks and its buttons. Play starts the task in
+ * the fields; pause stops the clock where it is, and play resumes it from
+ * there; the square finishes the task and takes the clock back to zero.
  *
- * The server owns the truth (the running block and the task's session); this
- * component only shows it, changing optimistically so every click feels
- * instant.
+ * The server owns the truth (the person's open entry); this component only
+ * shows it, changing optimistically so every click feels instant.
  */
-export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarProps) {
+export function TimerBar({ projects, tasks, timer, suggestions, serverNow }: TimerBarProps) {
   const t = useTranslations("timer");
   const [current, setCurrent] = useOptimistic<TimerState | null>(timer);
   const [pending, startTransition] = useTransition();
   const [projectId, setProjectId] = useState(timer?.projectId ?? projects[0]?.id ?? "");
+  const [task, setTask] = useState<SharedTask | null>(
+    timer?.taskId && timer.taskName ? { id: timer.taskId, name: timer.taskName } : null,
+  );
   const [description, setDescription] = useState(timer?.description ?? "");
   const [error, setError] = useState<string | null>(null);
   const [forgottenDismissed, setForgottenDismissed] = useState(false);
@@ -115,7 +121,10 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
   const selectedProject = projects.find((project) => project.id === projectId);
   const normalizedDescription = description.replace(/\s+/g, " ").trim();
   const isCurrentTask =
-    current !== null && current.projectId === projectId && current.description === normalizedDescription;
+    current !== null &&
+    current.projectId === projectId &&
+    current.taskId === (task?.id ?? null) &&
+    current.description === normalizedDescription;
   const serverNowIso = () => new Date(Date.now() + offset.current).toISOString();
 
   function run(change: () => Promise<{ error?: string } | undefined>) {
@@ -133,6 +142,8 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
       setCurrent({
         state: "running",
         projectId: selectedProject.id,
+        taskId: task?.id ?? null,
+        taskName: task?.name ?? null,
         description: normalizedDescription,
         startedAt: serverNowIso(),
         pausedAt: null,
@@ -141,7 +152,7 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
         projectColor: selectedProject.color,
       });
       setForgottenDismissed(false);
-      return startTimerAction(selectedProject.id, normalizedDescription);
+      return startTimerAction(selectedProject.id, normalizedDescription, task?.id ?? null);
     });
   }
 
@@ -198,8 +209,7 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
       <ProjectDot color={current.projectColor} className="size-[0.7em]" />
       <span className="truncate">
         {current.state === "paused" && `${t("paused")} · `}
-        {current.projectName}
-        {current.description ? ` · ${current.description}` : ""}
+        {[current.projectName, current.taskName, current.description].filter(Boolean).join(" · ")}
       </span>
     </>
   ) : (
@@ -208,7 +218,9 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
 
   return (
     <section aria-label={t("title")} data-tour="timer" className="panel grain flex flex-col gap-5 p-4 sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+      {/* What the work is: the project and one of the team's shared tasks
+          side by side, the free text under them. A phone stacks all three. */}
+      <div className="grid items-start gap-3 sm:grid-cols-2">
         <Dropdown
           label={t("project")}
           value={projectId}
@@ -218,8 +230,8 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
             label: project.name,
             icon: <ProjectDot color={project.color} />,
           }))}
-          className="sm:w-56"
         />
+        <TaskPicker tasks={tasks} value={task?.id ?? ""} onChange={setTask} />
         <Autocomplete
           label={t("description")}
           value={description}
@@ -228,7 +240,7 @@ export function TimerBar({ projects, timer, suggestions, serverNow }: TimerBarPr
           placeholder={t("descriptionPlaceholder")}
           maxLength={DESCRIPTION_MAX}
           onSubmit={start}
-          className="flex-1"
+          className="sm:col-span-2"
           inputClassName={FIELD}
         />
       </div>

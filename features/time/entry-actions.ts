@@ -14,7 +14,10 @@ import { parse, type ActionResult } from "@/lib/form";
 // zone (from the session), never in the server's zone.
 
 type Times = { startedAt: Date; endedAt: Date };
-type Parsed = { ok: true; data: Times & { projectId: string; description: string; keepTimes: boolean } };
+type Parsed = {
+  ok: true;
+  data: Times & { projectId: string; taskId: string | null; description: string; keepTimes: boolean };
+};
 
 /**
  * Reads the form. `stored` is the block being edited: when the form still
@@ -28,7 +31,11 @@ async function readForm(
 ): Promise<Parsed | { ok: false; result: ActionResult }> {
   const parsed = parse(entryFormSchema, entryFromForm(formData));
   if (!parsed.ok) return parsed;
-  const what = { projectId: parsed.data.projectId, description: parsed.data.description };
+  const what = {
+    projectId: parsed.data.projectId,
+    taskId: parsed.data.taskId,
+    description: parsed.data.description,
+  };
 
   if (stored && showsSameTimes(stored, parsed.data, timeZone)) {
     return { ok: true, data: { ...what, ...stored, keepTimes: true } };

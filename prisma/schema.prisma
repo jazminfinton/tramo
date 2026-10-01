@@ -44,6 +44,7 @@ model User {
   timeEntries        TimeEntry[]
   invitationsSent    Invitation[]      @relation("InvitedBy")
   timerSession       TimerSession?
+  tasksCreated       Task[]            @relation("TaskCreatedBy")
 }
 
 model Session {
@@ -123,6 +124,7 @@ model Workspace {
   members     WorkspaceMember[]
   invitations Invitation[]
   projects    Project[]
+  tasks       Task[]
 }
 
 // A person's place in a workspace. PENDING is an access request waiting for
@@ -214,6 +216,26 @@ model ProjectMember {
   @@index([userId])
 }
 
+// A task the whole workspace shares, so everyone logs the same work under the
+// same name. Anyone who tracks time can add one. An entry may point at one;
+// its free-text description stays next to it, for the detail.
+model Task {
+  id          String    @id @default(uuid(7))
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  // The name as it is compared: lowercase, single spaces. It keeps "Daily" and
+  // "daily" from becoming two tasks (see features/time/tasks.ts).
+  nameKey     String
+  createdById String?
+  createdBy   User?     @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  timeEntries TimeEntry[]
+
+  @@unique([workspaceId, nameKey])
+}
+
 enum EntrySource {
   TIMER
   MANUAL
@@ -238,6 +260,10 @@ model TimeEntry {
   // Restrict: projects with history are archived, never deleted.
   project       Project     @relation(fields: [projectId], references: [id], onDelete: Restrict)
   description   String      @default("")
+  // The shared task this time went to, if the person picked one. SetNull: a
+  // task that goes away leaves its entries with their description.
+  taskId        String?
+  task          Task?       @relation(fields: [taskId], references: [id], onDelete: SetNull)
   // timestamptz, not Prisma's default `timestamp`: weekly totals bucket with
   // `AT TIME ZONE`, which only converts correctly from a zoned timestamp.
   startedAt     DateTime    @db.Timestamptz(3)
@@ -255,6 +281,7 @@ model TimeEntry {
   @@unique([userId], where: raw("\"endedAt\" IS NULL"), map: "TimeEntry_one_running_per_user")
   @@index([userId, startedAt])
   @@index([projectId, startedAt])
+  @@index([taskId])
 }
 
 // RETIRED. It held the timer's task across pauses when pausing still closed the

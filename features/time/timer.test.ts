@@ -243,6 +243,54 @@ describe("one entry per task, across pauses", () => {
   });
 });
 
+describe("a timer on a shared task", () => {
+  let taskId: string;
+
+  beforeEach(async () => {
+    taskId = (await db.prisma.task.create({ data: { workspaceId, name: "Daily", nameKey: "daily" } })).id;
+  });
+
+  const startOn = (task: string | null, iso: string, description = "") =>
+    startTimer(db.prisma, { userId, workspaceId, projectId: projectA, description, taskId: task, now: at(iso) });
+
+  it("keeps the shared task on the entry", async () => {
+    expect(await startOn(taskId, "2026-09-23T12:00:00Z", "con el cliente")).toEqual({ ok: true });
+
+    expect(await open()).toMatchObject({ taskId, description: "con el cliente" });
+  });
+
+  it("starts without one when none is picked", async () => {
+    await startOn(null, "2026-09-23T12:00:00Z");
+
+    expect(await open()).toMatchObject({ taskId: null });
+  });
+
+  it("treats another shared task as a different task", async () => {
+    await startOn(taskId, "2026-09-23T12:00:00Z");
+    await startOn(null, "2026-09-23T12:30:00Z");
+
+    expect(await allEntries()).toEqual([
+      expect.objectContaining({ taskId, endedAt: at("2026-09-23T12:30:00Z") }),
+      expect.objectContaining({ taskId: null, endedAt: null }),
+    ]);
+  });
+
+  it("goes on with the same entry when the same shared task is started again", async () => {
+    await startOn(taskId, "2026-09-23T12:00:00Z");
+    await startOn(taskId, "2026-09-23T12:05:00Z");
+
+    expect(await allEntries()).toHaveLength(1);
+  });
+
+  it("refuses a task that isn't this workspace's", async () => {
+    const other = await db.prisma.workspace.create({ data: { name: "Other" } });
+    const theirs = await db.prisma.task.create({ data: { workspaceId: other.id, name: "Daily", nameKey: "daily" } });
+
+    expect(await startOn(theirs.id, "2026-09-23T12:00:00Z")).toEqual({ ok: false, reason: "unknownTask" });
+    expect(await open()).toBeNull();
+  });
+});
+
 describe("recentDescriptions", () => {
   it("lists each project's past descriptions, most recent first, without repeats or blanks", async () => {
     await db.prisma.timeEntry.createMany({

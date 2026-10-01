@@ -7,14 +7,15 @@ import type { TimerPageData } from "@/features/time/queries";
 type RecentEntriesProps = {
   entries: TimerPageData["recent"];
   projects: TimerPageData["projects"];
+  tasks: TimerPageData["tasks"];
   suggestions: TimerPageData["suggestions"];
   timeZone: string;
 };
 
 /** The person's latest finished blocks, newest first, each one editable. */
-export async function RecentEntries({ entries, projects, suggestions, timeZone }: RecentEntriesProps) {
+export async function RecentEntries({ entries, projects, tasks, suggestions, timeZone }: RecentEntriesProps) {
   const t = await getTranslations("timer.recent");
-  const shared = { projects, suggestions, timeZone };
+  const shared = { projects, tasks, suggestions, timeZone };
 
   return (
     <section data-tour="recent-entries" className="flex flex-col gap-3">

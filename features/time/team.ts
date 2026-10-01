@@ -30,6 +30,7 @@ export function listTeamEntries(
       source: true,
       editedAt: true,
       project: { select: { name: true, color: true } },
+      task: { select: { name: true } },
       user: { select: { id: true, name: true } },
     },
   });

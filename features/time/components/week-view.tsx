@@ -10,8 +10,8 @@ import { zonedDateKey, zonedInstant } from "@/lib/zoned";
 /** One person's week: the total, a projects × days grid, and the blocks by day. */
 export async function WeekView({ data, timeZone, tabs }: { data: WeekData; timeZone: string; tabs: boolean }) {
   const [t, format] = await Promise.all([getTranslations("week"), getFormatter()]);
-  const { week, range, today, currentWeek, entries, buckets, weekProjects, projects, suggestions } = data;
-  const shared = { projects, suggestions, timeZone };
+  const { week, range, today, currentWeek, entries, buckets, weekProjects, projects, tasks, suggestions } = data;
+  const shared = { projects, tasks, suggestions, timeZone };
 
   // Noon of each calendar day in the person's zone: a safe instant to format.
   const dayInstant = (isoDate: string) => zonedInstant(isoDate, 12 * 60, timeZone);

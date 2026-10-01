@@ -1,6 +1,7 @@
 import "server-only";
 
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { taskInWorkspace } from "@/features/time/tasks";
 
 /**
  * The timer's rules, against the database. The server is the source of truth:
@@ -11,9 +12,14 @@ import { Prisma, type PrismaClient } from "@/generated/prisma/client";
  * stays open with `pausedAt` set, and resuming adds that pause to
  * `pausedSeconds`, so the time worked is the span minus the pauses
  * (features/time/worked.ts). Only stop, or starting a different task, ends it.
+ *
+ * What makes a task "the same" is its project, its shared task (if it has
+ * one) and its description: change any of them and a new entry begins.
  */
 
-export type TimerResult = { ok: true } | { ok: false; reason: "cannotTrack" | "conflict" | "nothingPaused" };
+export type TimerResult =
+  | { ok: true }
+  | { ok: false; reason: "cannotTrack" | "unknownTask" | "conflict" | "nothingPaused" };
 
 type Tx = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
 
@@ -72,15 +78,29 @@ async function canTrackProject(db: PrismaClient | Tx, input: { userId: string; w
 
 export async function startTimer(
   db: PrismaClient,
-  input: { userId: string; workspaceId: string; projectId: string; description: string; now: Date },
+  input: {
+    userId: string;
+    workspaceId: string;
+    projectId: string;
+    description: string;
+    /** The workspace's shared task this work belongs to, if any. */
+    taskId?: string | null;
+    now: Date;
+  },
 ): Promise<TimerResult> {
+  const taskId = input.taskId ?? null;
   if (!(await canTrackProject(db, input))) return { ok: false, reason: "cannotTrack" };
+  if (!(await taskInWorkspace(db, taskId, input.workspaceId))) return { ok: false, reason: "unknownTask" };
 
   try {
     await db.$transaction(async (tx) => {
       await lockPerson(tx, input.userId);
       const current = await openEntry(tx, input.userId);
-      if (current && current.projectId === input.projectId && current.description === input.description) {
+      const sameTask =
+        current?.projectId === input.projectId &&
+        current.taskId === taskId &&
+        current.description === input.description;
+      if (current && sameTask) {
         // The same task is already open. Running: a double click, nothing to
         // do. Paused: play goes on with it, in the same entry.
         if (current.pausedAt) await unpause(tx, { ...current, pausedAt: current.pausedAt }, input.now);
@@ -92,6 +112,7 @@ export async function startTimer(
         data: {
           userId: input.userId,
           projectId: input.projectId,
+          taskId,
           description: input.description,
           startedAt: input.now,
         },

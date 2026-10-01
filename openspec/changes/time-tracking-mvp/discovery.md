@@ -70,6 +70,14 @@ A minimalist, orderly web app to track time per person, per project, and per tas
   - **Decided:** the clock reads in solid blocks, hours / minutes / seconds, each named below (like a flip clock); the floating window stands upright unless it's very flat.
 - Each entry has who, project, a free-text task description, start, and end.
   - **Decided:** the task description is free text, with autocomplete from the user's own past descriptions (per project). This keeps "fix login" and "Fix Login" from splitting the metrics.
+  - **Decided (2026-09-30): shared tasks.** The owner asked for tasks the whole team can pick, so everyone says what they're working on faster and under the same name. Each workspace has a list of them:
+    - Anyone who tracks time can add a task, from the same dropdown they pick from. Admins can too.
+    - Names are unique in the workspace, whatever their case. Adding a name that exists picks the existing task.
+    - A shared task is optional and lives next to the free text, which stays for the detail. An entry can have a task, free text, both or neither.
+    - Any entry that already exists can be moved onto a shared task, or off it, from the edit dialog.
+    - A task belongs to the workspace, not to a project: "Daily" is the same task everywhere.
+    - Metrics still rank tasks per project: by the shared task's name when the entry has one, by its free text otherwise.
+    - Renaming and removing tasks is left for later.
 - **Decided (v1): manual entry and editing.** People can add or fix time when they forgot the timer. Manually created or edited entries are flagged, so the metrics stay honest.
 - **Decided (v1): forgotten-timer alert.** When a timer has run for 8 hours, the app warns the user and asks them to confirm or fix it.
 
@@ -186,6 +194,7 @@ These override any recommendation in `exploration.md` that conflicts with them.
 | Editing past entries | **No time limit.** Everyone can edit their own entries anytime, and admins can edit anyone's. Every manual creation or edit is flagged |
 | Manual time input | **Time selectors** (changed from a smart free-text field after the first week of use: typing "18:00 o 1h30" didn't convince the owner). Start and end are picked from lists on a quarter-hour grid, like a calendar; each end option shows the resulting duration, an end before the start means the next day, and changing the start keeps the duration. Typing still jumps to a time ("930", "18"). The server keeps parsing "HH:MM", so the contract didn't change |
 | Multiple workspaces | **Allowed by the data model from day 1.** A user can belong to several workspaces. The workspace switcher UI stays hidden until a user has more than one |
+| Shared tasks | **A list per workspace** (added 2026-09-30). Anyone who tracks time adds to it from the task dropdown. A task is optional on an entry, next to its free text, and isn't tied to a project |
 
 **Defaults set by the orchestrator** (the owner can correct them during the proposal review):
 

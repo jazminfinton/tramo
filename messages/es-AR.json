@@ -260,7 +260,7 @@
       "title": "Tareas que más tiempo llevan",
       "caption": "Las tareas con más horas en el período",
       "name": "Tarea",
-      "empty": "Todavía no hay tareas con descripción en este período."
+      "empty": "Todavía no hay tramos con tarea o detalle en este período."
     }
   },
   "week": {
@@ -309,7 +309,8 @@
     "addTitle": "Agregar horas",
     "editTitle": "Editar tramo",
     "project": "Proyecto",
-    "description": "Tarea",
+    "task": "Tarea del equipo",
+    "description": "Detalle",
     "descriptionPlaceholder": "¿En qué trabajaste?",
     "date": "Día",
     "start": "Inicio",
@@ -339,6 +340,7 @@
       "future": "No se pueden cargar horas en el futuro.",
       "overlap": "Se superpone con otro tramo tuyo. Revisá los horarios.",
       "cannotTrack": "No podés registrar horas en ese proyecto.",
+      "unknownTask": "Esa tarea del equipo ya no existe. Recargá la página.",
       "forbidden": "Solo podés editar tus propios tramos.",
       "running": "Ese tramo sigue abierto. Terminalo desde el timer para editarlo.",
       "notFound": "Ese tramo ya no existe. Recargá la página.",
@@ -382,6 +384,7 @@
     },
     "errors": {
       "cannotTrack": "No podés registrar horas en ese proyecto.",
+      "unknownTask": "Esa tarea del equipo ya no existe. Recargá la página.",
       "conflict": "Se inició otro timer al mismo tiempo en otro dispositivo. Ya actualizamos la pantalla.",
       "invalid": "Revisá el proyecto y la descripción.",
       "generic": "Algo salió mal. Probá de nuevo.",
@@ -395,6 +398,21 @@
       "hours": "Horas",
       "minutes": "Minutos",
       "seconds": "Segundos"
+    }
+  },
+  "tasks": {
+    "label": "Tarea del equipo",
+    "none": "Sin tarea del equipo",
+    "new": "Nueva tarea…",
+    "newLabel": "Nombre de la tarea nueva",
+    "newPlaceholder": "Nombre de la tarea",
+    "create": "Crear la tarea",
+    "cancel": "Cancelar",
+    "errors": {
+      "nameRequired": "Poné un nombre.",
+      "nameTooLong": "Máximo 60 caracteres.",
+      "cannotTrack": "Para crear tareas del equipo tenés que registrar horas en algún proyecto.",
+      "generic": "Algo salió mal. Probá de nuevo."
     }
   },
   "settings": {
@@ -456,7 +474,7 @@
       },
       "timer": {
         "title": "Elegí, escribí y dale play",
-        "body": "Elegí el proyecto, escribí en qué vas a trabajar y dale play. Pausalo y reanudalo cuando quieras: el reloj sigue desde donde quedó. Con el cuadrado terminás la tarea."
+        "body": "Elegí el proyecto y una tarea del equipo, o escribí en qué vas a trabajar, y dale play. Pausalo y reanudalo cuando quieras: el reloj sigue desde donde quedó. Con el cuadrado terminás la tarea."
       },
       "popOut": {
         "title": "El reloj, siempre a la vista",

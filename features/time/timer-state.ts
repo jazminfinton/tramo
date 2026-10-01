@@ -6,6 +6,8 @@
 
 type OpenEntry = {
   projectId: string;
+  taskId: string | null;
+  task: { name: string } | null;
   description: string;
   startedAt: Date;
   pausedAt: Date | null;
@@ -16,6 +18,9 @@ type OpenEntry = {
 export type TimerState = {
   state: "running" | "paused";
   projectId: string;
+  /** The shared task the work sits under, if any. */
+  taskId: string | null;
+  taskName: string | null;
   description: string;
   /** When the task started (ISO). */
   startedAt: string;
@@ -32,6 +37,8 @@ export function timerState(open: OpenEntry | null): TimerState | null {
   return {
     state: open.pausedAt ? "paused" : "running",
     projectId: open.projectId,
+    taskId: open.taskId,
+    taskName: open.task?.name ?? null,
     description: open.description,
     startedAt: open.startedAt.toISOString(),
     pausedAt: open.pausedAt?.toISOString() ?? null,

@@ -3,6 +3,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { Avatar } from "@/components/common/avatar";
 import { WeekHeader } from "@/features/time/components/week-header";
 import type { TeamWeekData } from "@/features/time/queries";
+import { entryTitle } from "@/features/time/task-text";
 import type { TeamEntry } from "@/features/time/team";
 import { workedMs } from "@/features/time/worked";
 import { formatClock, formatHours } from "@/lib/duration";
@@ -20,7 +21,7 @@ async function TeamEntryRow({ entry }: { entry: TeamEntry }) {
       <Avatar name={entry.user.name} size="sm" />
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-sm">
-          {entry.description || <span className="text-ink-dim">{t("noDescription")}</span>}
+          {entryTitle(entry) || <span className="text-ink-dim">{t("noDescription")}</span>}
         </span>
         <span className="flex min-w-0 items-center gap-1.5 text-xs text-ink-dim">
           <span className="truncate">{entry.user.name}</span>
