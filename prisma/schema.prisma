@@ -184,16 +184,22 @@ model InvitationProject {
 // =============================================================================
 
 model Project {
-  id          String    @id @default(uuid(7))
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  name        String
+  id           String    @id @default(uuid(7))
+  workspaceId  String
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name         String
   // Key into the closed set of project colors used by charts.
-  color       String
+  color        String
+  // What Metrics opens with when this project is chosen, set by an admin: the
+  // period (a preset) and the metric that goes first. Keys into the closed
+  // sets of lib/metric-views.ts, like `color`; the viewer can still pick
+  // another period.
+  metricsRange String    @default("4w")
+  metricsLead  String    @default("evolution")
   // Archived instead of deleted, so history is never lost.
-  archivedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   members       ProjectMember[]
   invitations   InvitationProject[]

@@ -4,6 +4,7 @@ import { minutesByPeriod, minutesByPerson, minutesByProject, topTasks } from "@/
 import { resolveRange } from "@/features/metrics/range";
 import { visibleProjectsWhere } from "@/lib/access/permissions";
 import { prisma } from "@/lib/db";
+import { metricDefaults } from "@/lib/metric-views";
 
 /** Past this many projects, the rest fold into "Other": the palette has eight slots, never a ninth. */
 const MAX_SERIES = 7;
@@ -17,7 +18,7 @@ function visibleProjects(userId: string, workspaceId: string, isAdmin: boolean) 
   return prisma.project.findMany({
     where: visibleProjectsWhere({ workspaceId, userId, isAdmin }),
     orderBy: [{ archivedAt: { sort: "asc", nulls: "first" } }, { name: "asc" }],
-    select: { id: true, name: true, color: true, archivedAt: true },
+    select: { id: true, name: true, color: true, archivedAt: true, metricsRange: true, metricsLead: true },
   });
 }
 
@@ -33,16 +34,21 @@ export async function getMetrics(input: {
   projectParam: string | string[] | undefined;
 }) {
   const now = new Date();
-  const range = resolveRange(
-    { range: input.rangeParam, from: input.fromParam, to: input.toParam },
-    input.timeZone,
-    now,
-  );
   const projects = await visibleProjects(input.userId, input.workspaceId, input.isAdmin);
   const projectById = new Map(projects.map((project) => [project.id, project]));
 
   const selected =
     typeof input.projectParam === "string" && projectById.has(input.projectParam) ? input.projectParam : null;
+  // The chosen project says what the view opens with, as its admin set it:
+  // the period, unless the URL names one, and the metric that goes first.
+  // Every project together opens with the app's own.
+  const defaults = metricDefaults(selected ? projectById.get(selected) : null);
+  const range = resolveRange(
+    { range: input.rangeParam, from: input.fromParam, to: input.toParam },
+    input.timeZone,
+    now,
+    defaults.range,
+  );
   const scope = { projectIds: selected ? [selected] : [...projectById.keys()], start: range.start, end: range.end, now };
 
   const [byPerson, byProjectRows, tasks, periodRows] = await Promise.all([
@@ -81,11 +87,14 @@ export async function getMetrics(input: {
 
   return {
     range,
+    lead: defaults.lead,
     projects: projects.map((project) => ({
       id: project.id,
       name: project.name,
       color: project.color,
       archived: project.archivedAt !== null,
+      // The period its metrics open on, so the filters can show it at once.
+      defaultRange: metricDefaults(project).range,
     })),
     selected,
     total: byProject.reduce((sum, project) => sum + project.minutes, 0),

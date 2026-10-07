@@ -1,4 +1,5 @@
 import type { ProjectRole } from "@/generated/prisma/enums";
+import type { MetricLead, MetricRange } from "@/lib/metric-views";
 
 /**
  * The admin board's optimistic state: a change is shown immediately and the
@@ -11,6 +12,8 @@ export type BoardProjectState = {
   id: string;
   name: string;
   color: string;
+  /** What Metrics opens with for this project: its period and the metric that goes first. */
+  metrics: { range: MetricRange; lead: MetricLead };
   archived: boolean;
   members: BoardMember[];
 };

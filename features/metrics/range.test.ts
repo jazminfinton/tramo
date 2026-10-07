@@ -56,6 +56,26 @@ describe("resolveRange: the presets", () => {
   });
 });
 
+describe("resolveRange: a default of the view's own", () => {
+  it("opens on it when the URL names no period", () => {
+    expect(resolveRange({}, AR, now, "week")).toMatchObject({ key: "week", from: "2026-09-21", to: "2026-09-27" });
+    expect(resolveRange({ range: "forever" }, AR, now, "12w").key).toBe("12w");
+  });
+
+  it("gives way to what the URL names", () => {
+    expect(resolveRange({ range: "12w" }, AR, now, "week").key).toBe("12w");
+    expect(resolveRange({ from: "2026-09-01", to: "2026-09-30" }, AR, now, "week").key).toBe("custom");
+  });
+
+  it("tells a period the viewer picked from a default", () => {
+    expect(resolveRange({}, AR, now, "week").explicit).toBe(false);
+    expect(resolveRange({ range: "forever" }, AR, now).explicit).toBe(false);
+    expect(resolveRange({ range: "4w" }, AR, now).explicit).toBe(true);
+    expect(resolveRange({ from: "2026-09-01", to: "2026-09-30" }, AR, now).explicit).toBe(true);
+    expect(resolveRange({ from: "2026-09-30", to: "2026-09-01" }, AR, now).explicit).toBe(false);
+  });
+});
+
 describe("resolveRange: days picked by hand", () => {
   it("covers both days whole, on the viewer's clock", () => {
     const range = picked("2026-09-01", "2026-09-30");

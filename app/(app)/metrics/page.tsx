@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { RefreshOnFocus } from "@/components/common/refresh-on-focus";
@@ -9,6 +9,7 @@ import { getMetrics } from "@/features/metrics/queries";
 import { DEFAULT_TIME_ZONE } from "@/i18n/config";
 import { requireMember } from "@/lib/dal";
 import { formatHours } from "@/lib/duration";
+import { leadFirst, type MetricLead } from "@/lib/metric-views";
 import { zonedDateKey, zonedInstant } from "@/lib/zoned";
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
@@ -57,6 +58,51 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
   const selectedProject = metrics.projects.find((project) => project.id === metrics.selected);
   const hasData = metrics.total > 0;
 
+  // The three metrics a view can lead with, each in its card.
+  const cards: Record<MetricLead, ReactNode> = {
+    evolution: (
+      <Card title={t(`${period}.title`)}>
+        <PeriodStack
+          labels={columnLabels}
+          series={metrics.series}
+          caption={t(`${period}.caption`)}
+          bucketHeader={t(`${period}.bucket`)}
+          current={todayColumn === -1 ? undefined : todayColumn}
+        />
+      </Card>
+    ),
+    people: (
+      <Card title={t("byPerson.title")}>
+        <BarTable
+          caption={t("byPerson.caption")}
+          nameHeader={t("byPerson.name")}
+          hoursHeader={t("hours")}
+          rows={metrics.byPerson.map((person) => ({ key: person.id, label: person.name, minutes: person.minutes }))}
+        />
+      </Card>
+    ),
+    tasks: (
+      <Card title={t("tasks.title")}>
+        {metrics.tasks.length === 0 ? (
+          <p className="text-sm text-ink-muted">{t("tasks.empty")}</p>
+        ) : (
+          <BarTable
+            caption={t("tasks.caption")}
+            nameHeader={t("tasks.name")}
+            hoursHeader={t("hours")}
+            rows={metrics.tasks.map((task) => ({
+              key: `${task.projectId}:${task.name}`,
+              label: task.name,
+              sublabel: selectedProject ? undefined : task.projectName,
+              color: task.projectColor,
+              minutes: task.minutes,
+            }))}
+          />
+        )}
+      </Card>
+    ),
+  };
+
   return (
     <>
       <RefreshOnFocus />
@@ -71,7 +117,12 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
         ) : (
           <>
             <MetricsFilters
-              period={{ key: metrics.range.key, from: metrics.range.from, to: metrics.range.to }}
+              period={{
+                key: metrics.range.key,
+                from: metrics.range.from,
+                to: metrics.range.to,
+                explicit: metrics.range.explicit,
+              }}
               project={metrics.selected}
               projects={metrics.projects}
               today={today}
@@ -90,27 +141,12 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
 
             {!hasData ? (
               <p className="panel grain p-5 text-sm text-ink-muted">{t("empty")}</p>
-            ) : (
+            ) : metrics.lead === "evolution" ? (
               <>
-                <Card title={t(`${period}.title`)}>
-                  <PeriodStack
-                    labels={columnLabels}
-                    series={metrics.series}
-                    caption={t(`${period}.caption`)}
-                    bucketHeader={t(`${period}.bucket`)}
-                    current={todayColumn === -1 ? undefined : todayColumn}
-                  />
-                </Card>
+                {cards.evolution}
 
                 <div className="grid gap-6 lg:grid-cols-2">
-                  <Card title={t("byPerson.title")}>
-                    <BarTable
-                      caption={t("byPerson.caption")}
-                      nameHeader={t("byPerson.name")}
-                      hoursHeader={t("hours")}
-                      rows={metrics.byPerson.map((person) => ({ key: person.id, label: person.name, minutes: person.minutes }))}
-                    />
-                  </Card>
+                  {cards.people}
 
                   {/* One project selected makes this a one-bar chart: the headline already says it. */}
                   {!selectedProject && (
@@ -129,26 +165,14 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
                     </Card>
                   )}
 
-                  <Card title={t("tasks.title")}>
-                    {metrics.tasks.length === 0 ? (
-                      <p className="text-sm text-ink-muted">{t("tasks.empty")}</p>
-                    ) : (
-                      <BarTable
-                        caption={t("tasks.caption")}
-                        nameHeader={t("tasks.name")}
-                        hoursHeader={t("hours")}
-                        rows={metrics.tasks.map((task) => ({
-                          key: `${task.projectId}:${task.name}`,
-                          label: task.name,
-                          sublabel: selectedProject ? undefined : task.projectName,
-                          color: task.projectColor,
-                          minutes: task.minutes,
-                        }))}
-                      />
-                    )}
-                  </Card>
+                  {cards.tasks}
                 </div>
               </>
+            ) : (
+              // A project whose admin put another metric first: that one leads
+              // and the rest follow, each on its own row. Only a chosen project
+              // gets here, so there's no card per project to place.
+              leadFirst(metrics.lead).map((metric) => <Fragment key={metric}>{cards[metric]}</Fragment>)
             )}
           </>
         )}

@@ -1,8 +1,9 @@
+import { DEFAULT_METRIC_RANGE, isMetricRange, type MetricRange } from "@/lib/metric-views";
 import { isIsoDate, isoDaysBetween, isoWeekStart, shiftIsoDate, zonedInstant, zonedWeekStart } from "@/lib/zoned";
 
-/** The presets: the current week, alone or with the ones before it. */
-export const METRIC_RANGES = ["week", "4w", "12w"] as const;
-export type MetricRange = (typeof METRIC_RANGES)[number];
+// The presets themselves live in lib/metric-views.ts, shared with the
+// projects' admin; the screens here keep reaching them through this module.
+export { METRIC_RANGES, type MetricRange } from "@/lib/metric-views";
 
 /** A range picked day by day on the calendar, instead of a preset. */
 export const CUSTOM_RANGE = "custom";
@@ -23,10 +24,6 @@ export type BucketUnit = "day" | "week";
 /** A value as it comes from the URL: anyone can write anything there. */
 type Param = string | string[] | undefined;
 
-function isMetricRange(value: unknown): value is MetricRange {
-  return typeof value === "string" && (METRIC_RANGES as readonly string[]).includes(value);
-}
-
 /** The two days in the URL, when they make a range: in order, and no longer than a year. */
 function pickedDays(from: Param, to: Param): { from: string; to: string } | null {
   if (!isIsoDate(from) || !isIsoDate(to) || from > to) return null;
@@ -43,8 +40,12 @@ function everyDays(first: string, last: string, step: number): string[] {
  * The days the metrics cover, in the viewer's time zone: two days picked on
  * the calendar (`from` and `to`), or else a preset (`range`), which ends with
  * the current week. Everything here comes from the URL, so whatever doesn't
- * make sense falls back: a broken pair of days to the preset, an unknown
- * preset to four weeks.
+ * make sense falls back: a broken pair of days to the preset, and an unknown
+ * preset to `fallback`, the view's own default (the chosen project's, or four
+ * weeks).
+ *
+ * `explicit` tells whether the viewer picked the period, days or preset, or
+ * it's that default.
  *
  * `from` and `to` are the first and last calendar day, both included; `start`
  * and `end` are the same span as instants, `end` excluded.
@@ -54,9 +55,15 @@ function everyDays(first: string, last: string, step: number): string[] {
  * the longer presets week by week. A week at the edge of a picked range only
  * counts the days inside it.
  */
-export function resolveRange(params: { range?: Param; from?: Param; to?: Param }, timeZone: string, now: Date) {
+export function resolveRange(
+  params: { range?: Param; from?: Param; to?: Param },
+  timeZone: string,
+  now: Date,
+  fallback: MetricRange = DEFAULT_METRIC_RANGE,
+) {
   const picked = pickedDays(params.from, params.to);
-  const preset: MetricRange = isMetricRange(params.range) ? params.range : "4w";
+  const named = isMetricRange(params.range) ? params.range : null;
+  const preset = named ?? fallback;
   const thisWeek = zonedWeekStart(now, timeZone);
 
   const key: RangeKey = picked ? CUSTOM_RANGE : preset;
@@ -67,6 +74,7 @@ export function resolveRange(params: { range?: Param; from?: Param; to?: Param }
 
   return {
     key,
+    explicit: picked !== null || named !== null,
     from,
     to,
     unit,

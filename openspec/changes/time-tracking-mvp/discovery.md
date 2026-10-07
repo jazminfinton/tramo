@@ -95,6 +95,10 @@ A minimalist, orderly web app to track time per person, per project, and per tas
   - Up to a month it reads day by day; longer than that, week by week, and a week at its edge only counts the days inside the range.
   - The range lives in the URL (`from` and `to`), like the other filters, so a view can be shared.
   - The calendar is the app's own, next to the single-date one: no component library, as everywhere else.
+- **Decided (2026-10-07): each project opens its metrics its own way.** The owner asked for admins to choose what shows by default per project, and confirmed it means two things, both set in the project's edit dialog:
+  - **The period it opens on:** one of the presets. It's a default, not a lock: once a viewer picks a period (a preset or days on the calendar), theirs stays while they switch projects. Only what the viewer picked travels in the URL, so a default stays a default.
+  - **The metric that goes first:** the hours over time, per person, or the tasks. It leads the page and the other two follow.
+  - Every project together keeps the app's own: four weeks, the hours over time first. So does a project nobody configured.
 
 ## Other v1 features
 

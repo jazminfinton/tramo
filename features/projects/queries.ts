@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/db";
+import { metricDefaults } from "@/lib/metric-views";
 
 /** Everything the admin board needs: projects with their people, and who can be assigned. */
 export async function getProjectsBoard(workspaceId: string) {
@@ -12,6 +13,8 @@ export async function getProjectsBoard(workspaceId: string) {
         id: true,
         name: true,
         color: true,
+        metricsRange: true,
+        metricsLead: true,
         archivedAt: true,
         members: {
           orderBy: { createdAt: "asc" },
@@ -31,6 +34,8 @@ export async function getProjectsBoard(workspaceId: string) {
       id: project.id,
       name: project.name,
       color: project.color,
+      // What its metrics open with, for the edit dialog.
+      metrics: metricDefaults(project),
       archived: project.archivedAt !== null,
       members: project.members.map((member) => ({
         userId: member.userId,

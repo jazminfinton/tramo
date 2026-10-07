@@ -90,6 +90,15 @@
       "title": "Editar proyecto",
       "name": "Nombre",
       "color": "Color",
+      "metricsRange": "Período inicial en Métricas",
+      "metricsRangeHint": "Con qué período abre este proyecto en Métricas. Después cada uno lo puede cambiar.",
+      "metricsLead": "Métrica destacada",
+      "metricsLeadHint": "La que aparece primero al ver las métricas de este proyecto.",
+      "leads": {
+        "evolution": "Horas en el tiempo",
+        "people": "Horas por persona",
+        "tasks": "Tareas"
+      },
       "cancel": "Cancelar",
       "save": "Guardar",
       "saving": "Guardando…"
@@ -116,6 +125,8 @@
       "nameTooLong": "Máximo 60 caracteres.",
       "nameTaken": "Ya hay un proyecto con ese nombre.",
       "invalidColor": "Elegí un color de la lista.",
+      "invalidMetricsRange": "Elegí un período de la lista.",
+      "invalidMetricsLead": "Elegí una métrica de la lista.",
       "invalidRole": "Elegí un rol válido.",
       "notMember": "Esa persona no es miembro activo del espacio.",
       "notFound": "Ese proyecto ya no existe o cambió. Recargá la página.",
@@ -525,7 +536,7 @@
       },
       "board": {
         "title": "Proyectos y equipos",
-        "body": "Creá proyectos y arrastrá a cada persona al suyo. Si preferís, usá Asignar en cada proyecto."
+        "body": "Creá proyectos y arrastrá a cada persona al suyo. Si preferís, usá Asignar en cada proyecto. Con Editar elegís con qué período y qué métrica abre cada uno en Métricas."
       },
       "settings": {
         "title": "A tu gusto",

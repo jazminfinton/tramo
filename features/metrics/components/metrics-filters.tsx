@@ -8,15 +8,13 @@ import { DateRangeField } from "@/components/common/date-range-field";
 import { Dropdown } from "@/components/common/dropdown";
 import { RadioGroup } from "@/components/common/radio-group";
 import { announceNavigation } from "@/components/global/navigation-progress";
-import { CUSTOM_RANGE, MAX_RANGE_DAYS, METRIC_RANGES, type ResolvedRange } from "@/features/metrics/range";
-
-/** The days on show and what chose them: a preset, or two days on the calendar. */
-type Period = Pick<ResolvedRange, "key" | "from" | "to">;
+import { metricsQuery, switchProject, type MetricsView, type Period } from "@/features/metrics/filters";
+import { CUSTOM_RANGE, MAX_RANGE_DAYS, METRIC_RANGES, type MetricRange } from "@/features/metrics/range";
 
 type MetricsFiltersProps = {
   period: Period;
   project: string | null;
-  projects: { id: string; name: string; color: string; archived: boolean }[];
+  projects: { id: string; name: string; color: string; archived: boolean; defaultRange: MetricRange }[];
   /** Today on the viewer's calendar: the last day the calendar offers. */
   today: string;
 };
@@ -30,7 +28,8 @@ const ALL = "all";
  *
  * The days come from a preset or from the calendar, one or the other: picking
  * a range leaves no preset checked, and a preset takes the calendar's range
- * away.
+ * away. Until the viewer picks either, each project opens on the period its
+ * admin set for it, so switching projects switches the period too.
  *
  * A pick shows at once (optimistic) and starts the top progress bar, even
  * though the charts arrive with the next server render.
@@ -42,25 +41,18 @@ export function MetricsFilters({ period, project, projects, today }: MetricsFilt
   const [shown, setShown] = useOptimistic({ period, project });
   const picked = shown.period.key === CUSTOM_RANGE;
 
-  function go(next: { period?: Period; project?: string | null }) {
-    const target = {
-      period: next.period ?? shown.period,
-      project: next.project === undefined ? shown.project : next.project,
-    };
-    const params = new URLSearchParams();
-    if (target.period.key === CUSTOM_RANGE) {
-      params.set("from", target.period.from);
-      params.set("to", target.period.to);
-    } else {
-      params.set("range", target.period.key);
-    }
-    if (target.project) params.set("project", target.project);
+  function go(target: MetricsView) {
+    const query = metricsQuery(target);
     announceNavigation();
     startTransition(() => {
       setShown(target);
-      router.push(`/metrics?${params.toString()}`);
+      router.push(query ? `/metrics?${query}` : "/metrics");
     });
   }
+
+  // A period picked here is the viewer's own from then on.
+  const pick = (next: Omit<Period, "explicit">) => go({ ...shown, period: { ...next, explicit: true } });
+  const defaults = Object.fromEntries(projects.map((item) => [item.id, item.defaultRange]));
 
   return (
     <div
@@ -75,7 +67,7 @@ export function MetricsFilters({ period, project, projects, today }: MetricsFilt
           options={METRIC_RANGES.map((value) => ({ value, label: t(`ranges.${value}`) }))}
           // The preset's own days arrive with the next render; until then the
           // calendar would open on the ones on show, which is close enough.
-          onChange={(key) => go({ period: { ...shown.period, key } })}
+          onChange={(key) => pick({ ...shown.period, key })}
           className="inline-flex w-fit gap-1 rounded-tile bg-surface p-1"
           optionClassName={(checked) =>
             `rounded-[6px] px-3 py-1.5 font-display text-sm transition-colors duration-150 ease-signature motion-reduce:transition-none ${
@@ -92,13 +84,13 @@ export function MetricsFilters({ period, project, projects, today }: MetricsFilt
           value={{ from: shown.period.from, to: shown.period.to }}
           max={today}
           maxDays={MAX_RANGE_DAYS}
-          onChange={(range) => go({ period: { key: CUSTOM_RANGE, ...range } })}
+          onChange={(range) => pick({ key: CUSTOM_RANGE, ...range })}
         />
       </div>
       <Dropdown
         label={t("project")}
         value={shown.project ?? ALL}
-        onChange={(value) => go({ project: value === ALL ? null : value })}
+        onChange={(value) => go(switchProject(shown, value === ALL ? null : value, defaults))}
         options={[
           { value: ALL, label: t("allProjects") },
           ...projects.map((item) => ({
