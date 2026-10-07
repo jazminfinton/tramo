@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { shiftIsoDate, weekRange, zonedDateKey, zonedInstant, zonedWeekStart } from "@/lib/zoned";
+import {
+  isoDaysBetween,
+  isoWeekStart,
+  shiftIsoDate,
+  weekRange,
+  zonedDateKey,
+  zonedInstant,
+  zonedWeekStart,
+} from "@/lib/zoned";
 
 const AR = "America/Argentina/Buenos_Aires"; // UTC-3, no DST
 const NY = "America/New_York"; // has DST
@@ -60,5 +68,32 @@ describe("shiftIsoDate", () => {
   it("moves calendar days across months and years", () => {
     expect(shiftIsoDate("2026-12-28", 7)).toBe("2027-01-04");
     expect(shiftIsoDate("2026-03-02", -7)).toBe("2026-02-23");
+  });
+});
+
+describe("isoDaysBetween", () => {
+  it("counts calendar days, across months, years and clock changes", () => {
+    expect(isoDaysBetween("2026-09-01", "2026-09-30")).toBe(29);
+    expect(isoDaysBetween("2026-12-28", "2027-01-04")).toBe(7);
+    // The United States move their clocks on these two weekends.
+    expect(isoDaysBetween("2026-03-07", "2026-03-09")).toBe(2);
+    expect(isoDaysBetween("2026-10-31", "2026-11-02")).toBe(2);
+  });
+
+  it("is zero for the same day, and negative backwards", () => {
+    expect(isoDaysBetween("2026-09-23", "2026-09-23")).toBe(0);
+    expect(isoDaysBetween("2026-09-30", "2026-09-01")).toBe(-29);
+  });
+});
+
+describe("isoWeekStart", () => {
+  it("returns the Monday of the week a calendar day falls in", () => {
+    expect(isoWeekStart("2026-09-23")).toBe("2026-09-21"); // Wednesday
+    expect(isoWeekStart("2026-09-21")).toBe("2026-09-21"); // Monday
+    expect(isoWeekStart("2026-09-27")).toBe("2026-09-21"); // Sunday
+  });
+
+  it("reaches back into the year before", () => {
+    expect(isoWeekStart("2027-01-01")).toBe("2026-12-28"); // Friday
   });
 });

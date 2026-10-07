@@ -89,6 +89,12 @@ A minimalist, orderly web app to track time per person, per project, and per tas
   - Hours per project (week and total)
   - Top tasks by time within a project
   - Week-over-week evolution (per person or per project)
+- **Decided (2026-10-07): any range of days.** The presets (this week, 4 and 12 weeks) all end with the current week, and the owner asked to look at any dates, picked on a calendar like the one in another of the team's projects. Next to the presets there's a calendar:
+  - The first day picked starts the range and the second one ends it, in either order. Two months show side by side, one on a phone.
+  - A range covers a year at most and can't reach past today.
+  - Up to a month it reads day by day; longer than that, week by week, and a week at its edge only counts the days inside the range.
+  - The range lives in the URL (`from` and `to`), like the other filters, so a view can be shared.
+  - The calendar is the app's own, next to the single-date one: no component library, as everywhere else.
 
 ## Other v1 features
 

@@ -26,11 +26,18 @@ export async function getMetrics(input: {
   workspaceId: string;
   isAdmin: boolean;
   timeZone: string;
+  // Straight from the URL: a preset, or two days picked on the calendar.
   rangeParam: string | string[] | undefined;
+  fromParam: string | string[] | undefined;
+  toParam: string | string[] | undefined;
   projectParam: string | string[] | undefined;
 }) {
   const now = new Date();
-  const range = resolveRange(input.rangeParam, input.timeZone, now);
+  const range = resolveRange(
+    { range: input.rangeParam, from: input.fromParam, to: input.toParam },
+    input.timeZone,
+    now,
+  );
   const projects = await visibleProjects(input.userId, input.workspaceId, input.isAdmin);
   const projectById = new Map(projects.map((project) => [project.id, project]));
 

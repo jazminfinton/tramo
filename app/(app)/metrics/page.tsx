@@ -22,23 +22,38 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 
 export default async function MetricsPage({ searchParams }: PageProps<"/metrics">) {
   const { user, workspace, isAdmin } = await requireMember();
-  const { range: rangeParam, project: projectParam } = await searchParams;
+  const { range: rangeParam, from: fromParam, to: toParam, project: projectParam } = await searchParams;
   const timeZone = user.timeZone ?? DEFAULT_TIME_ZONE;
   const [t, format, metrics] = await Promise.all([
     getTranslations("metrics"),
     getFormatter(),
-    getMetrics({ userId: user.id, workspaceId: workspace.id, isAdmin, timeZone, rangeParam, projectParam }),
+    getMetrics({
+      userId: user.id,
+      workspaceId: workspace.id,
+      isAdmin,
+      timeZone,
+      rangeParam,
+      fromParam,
+      toParam,
+      projectParam,
+    }),
   ]);
 
-  // One week reads day by day ("lun 21"), longer ranges week by week ("21 sept").
+  // The current week names its days by weekday ("lun 21"). Anything else names
+  // each column by its date ("21 sept"): a day, or the Monday of a week. Days
+  // picked on the calendar can cross months, where a weekday and a number
+  // could name two different days.
   const byDay = metrics.range.unit === "day";
   const period = byDay ? "daily" : "weekly";
   const columnLabels = metrics.range.buckets.map((bucket) =>
     format.dateTime(
       zonedInstant(bucket, 12 * 60, timeZone),
-      byDay ? { weekday: "short", day: "numeric" } : { day: "numeric", month: "short" },
+      metrics.range.key === "week" ? { weekday: "short", day: "numeric" } : { day: "numeric", month: "short" },
     ),
   );
+  const today = zonedDateKey(new Date(), timeZone);
+  // Today's column gets the one direct label; when today isn't on show, the last one does.
+  const todayColumn = byDay ? metrics.range.buckets.indexOf(today) : -1;
   const selectedProject = metrics.projects.find((project) => project.id === metrics.selected);
   const hasData = metrics.total > 0;
 
@@ -55,7 +70,12 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
           <p className="panel grain p-5 text-sm text-ink-muted">{t("noProjects")}</p>
         ) : (
           <>
-            <MetricsFilters range={metrics.range.key} project={metrics.selected} projects={metrics.projects} />
+            <MetricsFilters
+              period={{ key: metrics.range.key, from: metrics.range.from, to: metrics.range.to }}
+              project={metrics.selected}
+              projects={metrics.projects}
+              today={today}
+            />
 
             {/* The headline number. Proportional figures, not tabular: it stands alone. */}
             <section className="panel-accent flex flex-col gap-1 p-5">
@@ -78,7 +98,7 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
                     series={metrics.series}
                     caption={t(`${period}.caption`)}
                     bucketHeader={t(`${period}.bucket`)}
-                    current={byDay ? metrics.range.buckets.indexOf(zonedDateKey(new Date(), timeZone)) : undefined}
+                    current={todayColumn === -1 ? undefined : todayColumn}
                   />
                 </Card>
 

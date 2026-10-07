@@ -9,7 +9,8 @@ type Option<T extends string> = { value: T; label: string };
 type RadioGroupProps<T extends string> = {
   /** Accessible name of the group. */
   label: string;
-  value: T;
+  /** The checked option, or null when none is: the first one then takes the tab stop. */
+  value: T | null;
   options: readonly Option<T>[];
   onChange: (value: T) => void;
   /** Visual content of each option; the button around it is handled here. */

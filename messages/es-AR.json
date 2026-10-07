@@ -221,6 +221,8 @@
     "hours": "Horas",
     "filters": {
       "range": "Período",
+      "dates": "Rango de fechas",
+      "pickDates": "Elegir fechas",
       "project": "Proyecto",
       "allProjects": "Todos los proyectos",
       "archived": "{name} (archivado)",
@@ -303,6 +305,11 @@
     "month": "Mes",
     "year": "Año",
     "today": "Hoy"
+  },
+  "dateRange": {
+    "pickStart": "Elegí el primer día.",
+    "pickEnd": "Ahora elegí el último día.",
+    "close": "Cerrar"
   },
   "entries": {
     "add": "Agregar horas",

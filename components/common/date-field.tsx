@@ -8,6 +8,7 @@ import { Dropdown } from "@/components/common/dropdown";
 import { useAnchoredPopover } from "@/components/common/use-anchored-popover";
 import {
   addMonths,
+  calendarKeyTarget,
   formatDateInput,
   fromIsoDate,
   isSameDay,
@@ -113,38 +114,11 @@ export function DateField({
   }, [open]);
 
   function onGridKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    const move = (days: number) => {
-      event.preventDefault();
-      followFocus.current = true;
-      const next = new Date(focused);
-      next.setDate(focused.getDate() + days);
-      setFocused(next);
-    };
-
-    switch (event.key) {
-      case "ArrowLeft":
-        return move(-1);
-      case "ArrowRight":
-        return move(1);
-      case "ArrowUp":
-        return move(-7);
-      case "ArrowDown":
-        return move(7);
-      case "Home":
-        return move(-((focused.getDay() + 6) % 7));
-      case "End":
-        return move(6 - ((focused.getDay() + 6) % 7));
-      case "PageUp":
-        event.preventDefault();
-        followFocus.current = true;
-        return setFocused(addMonths(focused, event.shiftKey ? -12 : -1));
-      case "PageDown":
-        event.preventDefault();
-        followFocus.current = true;
-        return setFocused(addMonths(focused, event.shiftKey ? 12 : 1));
-      default:
-        return;
-    }
+    const next = calendarKeyTarget(focused, event.key, event.shiftKey);
+    if (!next) return;
+    event.preventDefault();
+    followFocus.current = true;
+    setFocused(next);
   }
 
   const grid = monthGrid(focused.getFullYear(), focused.getMonth());
