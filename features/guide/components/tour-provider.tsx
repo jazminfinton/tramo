@@ -7,7 +7,7 @@ import { announceNavigation } from "@/components/global/navigation-progress";
 import { saveTourStepAction } from "@/features/guide/actions";
 import { HelpDialog } from "@/features/guide/components/help-dialog";
 import { TourOverlay } from "@/features/guide/components/tour-overlay";
-import { resumeIndex, tourStatus, type TourStep } from "@/features/guide/tour";
+import { resumeIndex, TOUR_DONE, tourStatus, type TourStep } from "@/features/guide/tour";
 
 type Guide = { openHelp: () => void };
 
@@ -78,7 +78,7 @@ export function TourProvider({ steps, saved: initialSaved, children }: TourProvi
     if (index === null) return;
     if (index >= steps.length - 1) {
       setIndex(null);
-      save(steps.length);
+      save(TOUR_DONE);
       return;
     }
     show(index + 1);

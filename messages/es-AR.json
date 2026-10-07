@@ -515,6 +515,10 @@
         "title": "Métricas",
         "body": "Horas por persona, por proyecto y por tarea. Cambiá el período o filtrá por proyecto acá arriba."
       },
+      "metricsDates": {
+        "title": "El rango que quieras",
+        "body": "Abrí el calendario y marcá el primer y el último día: todo lo de abajo se arma para ese rango. Los botones de al lado son atajos para las últimas semanas."
+      },
       "invite": {
         "title": "Sumá gente",
         "body": "Invitá con su mail de Google y elegí de antemano sus proyectos y si registra horas u observa."
