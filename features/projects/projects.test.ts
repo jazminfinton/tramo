@@ -50,6 +50,12 @@ describe("createProject", () => {
     expect(project.members).toEqual([expect.objectContaining({ userId: adminId, role: "TRACKER" })]);
   });
 
+  it("starts a project with the app's own metrics: four weeks, the hours over time first", async () => {
+    await createProject(db.prisma, { workspaceId, creatorId: adminId, name: "Fragua" });
+
+    expect(await db.prisma.project.findFirstOrThrow()).toMatchObject({ metricsRange: "4w", metricsLead: "evolution" });
+  });
+
   it("gives each new project the next color in order", async () => {
     await createProject(db.prisma, { workspaceId, creatorId: adminId, name: "Uno" });
     await createProject(db.prisma, { workspaceId, creatorId: adminId, name: "Dos" });
@@ -68,15 +74,38 @@ describe("createProject", () => {
   });
 });
 
+// What a project's metrics open with, left as the app sets it.
+const metrics = { metricsRange: "4w", metricsLead: "evolution" } as const;
+
 describe("updateProject / setProjectArchived", () => {
   it("renames and recolors a project", async () => {
     await createProject(db.prisma, { workspaceId, creatorId: adminId, name: "Viejo" });
     const project = await db.prisma.project.findFirstOrThrow();
 
-    expect(await updateProject(db.prisma, workspaceId, project.id, { name: "Nuevo", color: "red" })).toEqual({ ok: true });
+    expect(await updateProject(db.prisma, workspaceId, project.id, { ...metrics, name: "Nuevo", color: "red" })).toEqual({
+      ok: true,
+    });
     expect(await db.prisma.project.findUniqueOrThrow({ where: { id: project.id } })).toMatchObject({
       name: "Nuevo",
       color: "red",
+    });
+  });
+
+  it("sets what the project's metrics open with", async () => {
+    await createProject(db.prisma, { workspaceId, creatorId: adminId, name: "Soporte" });
+    const project = await db.prisma.project.findFirstOrThrow();
+
+    expect(
+      await updateProject(db.prisma, workspaceId, project.id, {
+        name: "Soporte",
+        color: "blue",
+        metricsRange: "week",
+        metricsLead: "tasks",
+      }),
+    ).toEqual({ ok: true });
+    expect(await db.prisma.project.findUniqueOrThrow({ where: { id: project.id } })).toMatchObject({
+      metricsRange: "week",
+      metricsLead: "tasks",
     });
   });
 

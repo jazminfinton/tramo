@@ -83,6 +83,52 @@ export function addMonths(date: Date, months: number): Date {
 }
 
 /**
+ * Where a key takes the focus inside a calendar grid (WAI-ARIA APG "Date
+ * Picker Dialog"): the arrows move a day or a week, Home and End go to the
+ * ends of the week, Page Up and Page Down turn a month, or a year with Shift.
+ * Null for any other key, so the caller leaves the event alone.
+ */
+export function calendarKeyTarget(focused: Date, key: string, shiftKey: boolean): Date | null {
+  const moved = (days: number) => {
+    const next = new Date(focused);
+    next.setDate(focused.getDate() + days);
+    return next;
+  };
+  const weekday = (focused.getDay() + 6) % 7; // 0 is Monday
+
+  switch (key) {
+    case "ArrowLeft":
+      return moved(-1);
+    case "ArrowRight":
+      return moved(1);
+    case "ArrowUp":
+      return moved(-7);
+    case "ArrowDown":
+      return moved(7);
+    case "Home":
+      return moved(-weekday);
+    case "End":
+      return moved(6 - weekday);
+    case "PageUp":
+      return addMonths(focused, shiftKey ? -12 : -1);
+    case "PageDown":
+      return addMonths(focused, shiftKey ? 12 : 1);
+    default:
+      return null;
+  }
+}
+
+/**
+ * The first of a run of `count` months that has `day` on show, moving the run
+ * that starts in the month of `first` as little as possible.
+ */
+export function monthsShowing(first: Date, count: number, day: Date): Date {
+  const apart = (day.getFullYear() - first.getFullYear()) * 12 + day.getMonth() - first.getMonth();
+  const shift = apart < 0 ? apart : Math.max(0, apart - count + 1);
+  return new Date(first.getFullYear(), first.getMonth() + shift, 1, NOON);
+}
+
+/**
  * The six Monday-first weeks drawn for a month: always 42 days, so the grid
  * doesn't change height (and shift the button under your finger) per month.
  */

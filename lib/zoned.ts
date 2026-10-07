@@ -49,6 +49,22 @@ export function shiftIsoDate(isoDate: string, days: number): string {
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
+/** Calendar days from one ISO date to another: negative when `to` comes first. */
+export function isoDaysBetween(from: string, to: string): number {
+  const utc = (isoDate: string) => {
+    const [year, month, day] = isoParts(isoDate);
+    return Date.UTC(year, month - 1, day);
+  };
+  return Math.round((utc(to) - utc(from)) / 86_400_000);
+}
+
+/** The Monday (ISO date) of the week a calendar day falls in, whatever the zone. */
+export function isoWeekStart(isoDate: string): string {
+  const [year, month, day] = isoParts(isoDate);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay(); // 0 is Sunday
+  return shiftIsoDate(isoDate, -((weekday + 6) % 7));
+}
+
 /** A local week: its bounds as instants and its seven calendar days. */
 export function weekRange(weekStart: string, timeZone: string) {
   return {

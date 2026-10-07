@@ -24,6 +24,7 @@ export type TourStepId =
   | "observerHome"
   | "teamWeek"
   | "metrics"
+  | "metricsDates"
   | "invite"
   | "board"
   | "settings"
@@ -57,7 +58,7 @@ const OBSERVER = [
   step("observerHome", "/", "observer-home"),
   step("teamWeek", "/week", "team-blocks"),
 ];
-const METRICS = step("metrics", "/metrics", "metrics-filters");
+const METRICS = [step("metrics", "/metrics", "metrics-filters"), step("metricsDates", "/metrics", "metrics-dates")];
 const ADMIN = [step("invite", "/admin/members", "invite-form"), step("board", "/admin/projects", "projects-board")];
 const END = [step("settings", "/settings", "theme-picker"), step("help", null, "help-button", "nav-menu")];
 
@@ -66,13 +67,22 @@ export function tourSteps({ persona, isAdmin }: { persona: ProjectPersona; isAdm
   const admin = isAdmin ? ADMIN : [];
   switch (persona) {
     case "tracker":
-      return [...TRACKER, METRICS, ...admin, ...END];
+      return [...TRACKER, ...METRICS, ...admin, ...END];
     case "observer":
-      return [...OBSERVER, METRICS, ...admin, ...END];
+      return [...OBSERVER, ...METRICS, ...admin, ...END];
     case "unassigned":
-      return isAdmin ? [step("welcomeAdmin", "/"), ...ADMIN, METRICS, ...END] : [step("welcomeUnassigned", "/"), ...END];
+      return isAdmin
+        ? [step("welcomeAdmin", "/"), ...ADMIN, ...METRICS, ...END]
+        : [step("welcomeUnassigned", "/"), ...END];
   }
 }
+
+/**
+ * What's saved when a person finishes the tour: a step no tour reaches. The
+ * tour's own length wouldn't do: add a step to the tour, and everyone who
+ * had finished would read as having left it on the last one.
+ */
+export const TOUR_DONE = 100;
 
 /**
  * Where a person stands with the tour, from the step saved on their account:

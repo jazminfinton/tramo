@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import { RefreshOnFocus } from "@/components/common/refresh-on-focus";
@@ -9,6 +9,7 @@ import { getMetrics } from "@/features/metrics/queries";
 import { DEFAULT_TIME_ZONE } from "@/i18n/config";
 import { requireMember } from "@/lib/dal";
 import { formatHours } from "@/lib/duration";
+import { leadFirst, type MetricLead } from "@/lib/metric-views";
 import { zonedDateKey, zonedInstant } from "@/lib/zoned";
 
 function Card({ title, children }: { title: string; children: ReactNode }) {
@@ -22,25 +23,85 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 
 export default async function MetricsPage({ searchParams }: PageProps<"/metrics">) {
   const { user, workspace, isAdmin } = await requireMember();
-  const { range: rangeParam, project: projectParam } = await searchParams;
+  const { range: rangeParam, from: fromParam, to: toParam, project: projectParam } = await searchParams;
   const timeZone = user.timeZone ?? DEFAULT_TIME_ZONE;
   const [t, format, metrics] = await Promise.all([
     getTranslations("metrics"),
     getFormatter(),
-    getMetrics({ userId: user.id, workspaceId: workspace.id, isAdmin, timeZone, rangeParam, projectParam }),
+    getMetrics({
+      userId: user.id,
+      workspaceId: workspace.id,
+      isAdmin,
+      timeZone,
+      rangeParam,
+      fromParam,
+      toParam,
+      projectParam,
+    }),
   ]);
 
-  // One week reads day by day ("lun 21"), longer ranges week by week ("21 sept").
+  // The current week names its days by weekday ("lun 21"). Anything else names
+  // each column by its date ("21 sept"): a day, or the Monday of a week. Days
+  // picked on the calendar can cross months, where a weekday and a number
+  // could name two different days.
   const byDay = metrics.range.unit === "day";
   const period = byDay ? "daily" : "weekly";
   const columnLabels = metrics.range.buckets.map((bucket) =>
     format.dateTime(
       zonedInstant(bucket, 12 * 60, timeZone),
-      byDay ? { weekday: "short", day: "numeric" } : { day: "numeric", month: "short" },
+      metrics.range.key === "week" ? { weekday: "short", day: "numeric" } : { day: "numeric", month: "short" },
     ),
   );
+  const today = zonedDateKey(new Date(), timeZone);
+  // Today's column gets the one direct label; when today isn't on show, the last one does.
+  const todayColumn = byDay ? metrics.range.buckets.indexOf(today) : -1;
   const selectedProject = metrics.projects.find((project) => project.id === metrics.selected);
   const hasData = metrics.total > 0;
+
+  // The three metrics a view can lead with, each in its card.
+  const cards: Record<MetricLead, ReactNode> = {
+    evolution: (
+      <Card title={t(`${period}.title`)}>
+        <PeriodStack
+          labels={columnLabels}
+          series={metrics.series}
+          caption={t(`${period}.caption`)}
+          bucketHeader={t(`${period}.bucket`)}
+          current={todayColumn === -1 ? undefined : todayColumn}
+        />
+      </Card>
+    ),
+    people: (
+      <Card title={t("byPerson.title")}>
+        <BarTable
+          caption={t("byPerson.caption")}
+          nameHeader={t("byPerson.name")}
+          hoursHeader={t("hours")}
+          rows={metrics.byPerson.map((person) => ({ key: person.id, label: person.name, minutes: person.minutes }))}
+        />
+      </Card>
+    ),
+    tasks: (
+      <Card title={t("tasks.title")}>
+        {metrics.tasks.length === 0 ? (
+          <p className="text-sm text-ink-muted">{t("tasks.empty")}</p>
+        ) : (
+          <BarTable
+            caption={t("tasks.caption")}
+            nameHeader={t("tasks.name")}
+            hoursHeader={t("hours")}
+            rows={metrics.tasks.map((task) => ({
+              key: `${task.projectId}:${task.name}`,
+              label: task.name,
+              sublabel: selectedProject ? undefined : task.projectName,
+              color: task.projectColor,
+              minutes: task.minutes,
+            }))}
+          />
+        )}
+      </Card>
+    ),
+  };
 
   return (
     <>
@@ -55,7 +116,17 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
           <p className="panel grain p-5 text-sm text-ink-muted">{t("noProjects")}</p>
         ) : (
           <>
-            <MetricsFilters range={metrics.range.key} project={metrics.selected} projects={metrics.projects} />
+            <MetricsFilters
+              period={{
+                key: metrics.range.key,
+                from: metrics.range.from,
+                to: metrics.range.to,
+                explicit: metrics.range.explicit,
+              }}
+              project={metrics.selected}
+              projects={metrics.projects}
+              today={today}
+            />
 
             {/* The headline number. Proportional figures, not tabular: it stands alone. */}
             <section className="panel-accent flex flex-col gap-1 p-5">
@@ -70,27 +141,12 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
 
             {!hasData ? (
               <p className="panel grain p-5 text-sm text-ink-muted">{t("empty")}</p>
-            ) : (
+            ) : metrics.lead === "evolution" ? (
               <>
-                <Card title={t(`${period}.title`)}>
-                  <PeriodStack
-                    labels={columnLabels}
-                    series={metrics.series}
-                    caption={t(`${period}.caption`)}
-                    bucketHeader={t(`${period}.bucket`)}
-                    current={byDay ? metrics.range.buckets.indexOf(zonedDateKey(new Date(), timeZone)) : undefined}
-                  />
-                </Card>
+                {cards.evolution}
 
                 <div className="grid gap-6 lg:grid-cols-2">
-                  <Card title={t("byPerson.title")}>
-                    <BarTable
-                      caption={t("byPerson.caption")}
-                      nameHeader={t("byPerson.name")}
-                      hoursHeader={t("hours")}
-                      rows={metrics.byPerson.map((person) => ({ key: person.id, label: person.name, minutes: person.minutes }))}
-                    />
-                  </Card>
+                  {cards.people}
 
                   {/* One project selected makes this a one-bar chart: the headline already says it. */}
                   {!selectedProject && (
@@ -109,26 +165,14 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
                     </Card>
                   )}
 
-                  <Card title={t("tasks.title")}>
-                    {metrics.tasks.length === 0 ? (
-                      <p className="text-sm text-ink-muted">{t("tasks.empty")}</p>
-                    ) : (
-                      <BarTable
-                        caption={t("tasks.caption")}
-                        nameHeader={t("tasks.name")}
-                        hoursHeader={t("hours")}
-                        rows={metrics.tasks.map((task) => ({
-                          key: `${task.projectId}:${task.name}`,
-                          label: task.name,
-                          sublabel: selectedProject ? undefined : task.projectName,
-                          color: task.projectColor,
-                          minutes: task.minutes,
-                        }))}
-                      />
-                    )}
-                  </Card>
+                  {cards.tasks}
                 </div>
               </>
+            ) : (
+              // A project whose admin put another metric first: that one leads
+              // and the rest follow, each on its own row. Only a chosen project
+              // gets here, so there's no card per project to place.
+              leadFirst(metrics.lead).map((metric) => <Fragment key={metric}>{cards[metric]}</Fragment>)
             )}
           </>
         )}

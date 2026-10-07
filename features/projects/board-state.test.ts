@@ -2,9 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import { applyBoardChange, type BoardProjectState } from "@/features/projects/board-state";
 
+const metrics = { range: "4w", lead: "evolution" } as const;
 const board: BoardProjectState[] = [
-  { id: "p1", name: "Fragua", color: "blue", archived: false, members: [{ userId: "u1", name: "Ana", role: "TRACKER" }] },
-  { id: "p2", name: "Horas", color: "orange", archived: false, members: [] },
+  {
+    id: "p1",
+    name: "Fragua",
+    color: "blue",
+    metrics,
+    archived: false,
+    members: [{ userId: "u1", name: "Ana", role: "TRACKER" }],
+  },
+  { id: "p2", name: "Horas", color: "orange", metrics, archived: false, members: [] },
 ];
 
 describe("applyBoardChange", () => {

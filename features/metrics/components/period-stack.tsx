@@ -2,9 +2,11 @@
 
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState, type KeyboardEvent } from "react";
 
+import { namedEvery } from "@/features/metrics/axis";
 import { formatHours } from "@/lib/duration";
+import { rovingTarget } from "@/lib/roving-focus";
 
 /** A null name is the "Other" series that folds the tail of projects. */
 export type PeriodSeries = { key: string; name: string | null; color: string | null; values: number[] };
@@ -48,6 +50,10 @@ function topRoundedRect(x: number, y: number, width: number, height: number, rad
  * column shows its breakdown; the same numbers are always available in the
  * table below (tooltips enhance, never gate). The legend is always shown: two
  * or more series never rely on color alone.
+ *
+ * It takes anything from a week of days to a year of weeks. With many columns
+ * the axis names only some, evenly. And the chart is one tab stop however
+ * many it has: the side arrows, Home and End move from column to column.
  */
 export function PeriodStack({ labels: columnLabels, series: rawSeries, caption, bucketHeader, current }: PeriodStackProps) {
   const t = useTranslations("metrics.chart");
@@ -61,6 +67,10 @@ export function PeriodStack({ labels: columnLabels, series: rawSeries, caption, 
   };
   const [active, setActive] = useState<number | null>(null);
   const [tableOpen, setTableOpen] = useState(false);
+  // The column Tab lands on: the last one visited, by name, so a new range
+  // doesn't inherit a place from the one before; or else the labeled one.
+  const [visited, setVisited] = useState<string | null>(null);
+  const columns = useRef<(SVGGElement | null)[]>([]);
 
   const totals = columnLabels.map((_, index) => series.reduce((sum, item) => sum + (item.values[index] ?? 0), 0));
   const maxHours = niceMaxHours(Math.max(...totals, 0));
@@ -72,6 +82,18 @@ export function PeriodStack({ labels: columnLabels, series: rawSeries, caption, 
   const y = (minutes: number) => (minutes / 60 / maxHours) * plotHeight;
   const ticks = [0, maxHours / 2, maxHours];
   const labeled = current ?? columnLabels.length - 1;
+  const named = namedEvery(columnLabels.length);
+  const visitedIndex = visited === null ? -1 : columnLabels.indexOf(visited);
+  const tabStop = visitedIndex === -1 ? Math.max(0, Math.min(labeled, columnLabels.length - 1)) : visitedIndex;
+
+  function onColumnKeyDown(event: KeyboardEvent<SVGGElement>, index: number) {
+    // Up and down stay with the page: they scroll it.
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") return;
+    const target = rovingTarget(event.key, index, columnLabels.length);
+    if (target === null) return;
+    event.preventDefault();
+    columns.current[target]?.focus();
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -124,13 +146,20 @@ export function PeriodStack({ labels: columnLabels, series: rawSeries, caption, 
             return (
               <g
                 key={columnLabel}
-                tabIndex={0}
+                ref={(node) => {
+                  columns.current[index] = node;
+                }}
+                tabIndex={index === tabStop ? 0 : -1}
                 role="img"
                 aria-label={`${columnLabel}: ${formatHours(totals[index] ?? 0)}`}
                 onMouseEnter={() => setActive(index)}
                 onMouseLeave={() => setActive(null)}
-                onFocus={() => setActive(index)}
+                onFocus={() => {
+                  setActive(index);
+                  setVisited(columnLabel);
+                }}
                 onBlur={() => setActive(null)}
+                onKeyDown={(event) => onColumnKeyDown(event, index)}
                 className="group/column outline-none"
               >
                 {/* The hit area is the whole band, far bigger than the mark. */}
@@ -163,17 +192,21 @@ export function PeriodStack({ labels: columnLabels, series: rawSeries, caption, 
                     <rect key={item.key} x={x} y={top + GAP} width={barWidth} height={segmentHeight} fill={fill(item.color)} />
                   );
                 })}
-                <text
-                  x={center}
-                  y={HEIGHT - PAD.bottom + 18}
-                  textAnchor="middle"
-                  fontSize={11}
-                  fill={active === index ? "var(--color-ink)" : "var(--color-ink-dim)"}
-                >
-                  {columnLabel}
-                </text>
-                {/* One direct label, the current column's total: selective, not on every column. */}
-                {index === labeled && (totals[index] ?? 0) > 0 && (
+                {index % named === 0 && (
+                  <text
+                    x={center}
+                    y={HEIGHT - PAD.bottom + 18}
+                    textAnchor="middle"
+                    fontSize={11}
+                    fill={active === index ? "var(--color-ink)" : "var(--color-ink-dim)"}
+                  >
+                    {columnLabel}
+                  </text>
+                )}
+                {/* One direct label, the current column's total: selective, not on every
+                    column. A crowded chart goes without: the number wouldn't fit over
+                    its bar, and the tooltip and the table have it. */}
+                {index === labeled && named === 1 && (totals[index] ?? 0) > 0 && (
                   <text
                     x={center}
                     y={PAD.top + plotHeight - y(totals[index] ?? 0) - 6}

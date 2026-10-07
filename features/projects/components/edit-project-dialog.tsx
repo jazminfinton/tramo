@@ -10,17 +10,33 @@ import { updateProjectAction } from "@/features/projects/actions";
 import { BUTTON_GHOST, BUTTON_PRIMARY } from "@/features/projects/components/styles";
 import { updateProjectSchema } from "@/features/projects/schema";
 import { focusFirstInvalid, toFieldErrors, type FieldErrors } from "@/lib/form";
+import { METRIC_LEADS, METRIC_RANGES, type MetricLead, type MetricRange } from "@/lib/metric-views";
 import { PROJECT_COLORS, isProjectColor, type ProjectColor } from "@/lib/project-colors";
 
 type EditProjectDialogProps = {
   open: boolean;
   onClose: () => void;
-  project: { id: string; name: string; color: string };
+  project: { id: string; name: string; color: string; metrics: { range: MetricRange; lead: MetricLead } };
 };
 
+// The two sets of pills that say what the project's metrics open with.
+const PILLS = "inline-flex w-fit max-w-full flex-wrap gap-1 rounded-tile bg-raised p-1";
+const pill = (checked: boolean) =>
+  `rounded-[6px] px-3 py-1.5 font-display text-sm transition-colors duration-150 ease-signature motion-reduce:transition-none ${
+    checked ? "bg-tile text-ink" : "text-ink-muted hover:text-ink"
+  }`;
+
+/**
+ * A project's name, its color, and what Metrics opens with when someone
+ * chooses it: the period, which each viewer can still change, and the metric
+ * that goes first.
+ */
 export function EditProjectDialog({ open, onClose, project }: EditProjectDialogProps) {
   const t = useTranslations("projects");
+  const tRanges = useTranslations("metrics.filters.ranges");
   const [color, setColor] = useState<ProjectColor>(isProjectColor(project.color) ? project.color : "blue");
+  const [metricsRange, setMetricsRange] = useState(project.metrics.range);
+  const [metricsLead, setMetricsLead] = useState(project.metrics.lead);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [pending, startTransition] = useTransition();
 
@@ -29,7 +45,7 @@ export function EditProjectDialog({ open, onClose, project }: EditProjectDialogP
     const form = event.currentTarget;
     const formData = new FormData(form);
 
-    const check = updateProjectSchema.safeParse({ name: formData.get("name"), color });
+    const check = updateProjectSchema.safeParse({ name: formData.get("name"), color, metricsRange, metricsLead });
     if (!check.success) {
       const fieldErrors = toFieldErrors(check.error);
       setErrors(fieldErrors);
@@ -82,6 +98,40 @@ export function EditProjectDialog({ open, onClose, project }: EditProjectDialogP
                 <span className="truncate">{option.label}</span>
               </>
             )}
+          />
+        </FieldGroup>
+
+        <FieldGroup
+          label={t("editDialog.metricsRange")}
+          hint={t("editDialog.metricsRangeHint")}
+          error={errorText(errors.metricsRange)}
+        >
+          <input type="hidden" name="metricsRange" value={metricsRange} />
+          <RadioGroup
+            label={t("editDialog.metricsRange")}
+            value={metricsRange}
+            options={METRIC_RANGES.map((value) => ({ value, label: tRanges(value) }))}
+            onChange={setMetricsRange}
+            className={PILLS}
+            optionClassName={pill}
+            renderOption={(option) => option.label}
+          />
+        </FieldGroup>
+
+        <FieldGroup
+          label={t("editDialog.metricsLead")}
+          hint={t("editDialog.metricsLeadHint")}
+          error={errorText(errors.metricsLead)}
+        >
+          <input type="hidden" name="metricsLead" value={metricsLead} />
+          <RadioGroup
+            label={t("editDialog.metricsLead")}
+            value={metricsLead}
+            options={METRIC_LEADS.map((value) => ({ value, label: t(`editDialog.leads.${value}`) }))}
+            onChange={setMetricsLead}
+            className={PILLS}
+            optionClassName={pill}
+            renderOption={(option) => option.label}
           />
         </FieldGroup>
 

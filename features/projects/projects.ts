@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import type { ProjectRole } from "@/generated/prisma/enums";
+import type { MetricLead, MetricRange } from "@/lib/metric-views";
 import { nextProjectColor, type ProjectColor } from "@/lib/project-colors";
 
 /**
@@ -49,11 +50,12 @@ export async function createProject(
   }
 }
 
+/** Renames a project, recolors it and sets what its metrics open with. */
 export async function updateProject(
   db: PrismaClient,
   workspaceId: string,
   projectId: string,
-  data: { name: string; color: ProjectColor },
+  data: { name: string; color: ProjectColor; metricsRange: MetricRange; metricsLead: MetricLead },
 ): Promise<ProjectResult> {
   try {
     const { count } = await db.project.updateMany({ where: { id: projectId, workspaceId }, data });

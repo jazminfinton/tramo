@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { resumeIndex, tourStatus, tourSteps } from "@/features/guide/tour";
+import { resumeIndex, TOUR_DONE, tourStatus, tourSteps } from "@/features/guide/tour";
 
 const ids = (...args: Parameters<typeof tourSteps>) => tourSteps(...args).map((step) => step.id);
 
@@ -39,6 +39,7 @@ describe("tourSteps", () => {
       "weekAdd",
       "weekTeam",
       "metrics",
+      "metricsDates",
       "settings",
       "help",
     ]);
@@ -54,6 +55,7 @@ describe("tourSteps", () => {
       "weekAdd",
       "weekTeam",
       "metrics",
+      "metricsDates",
       "invite",
       "board",
       "settings",
@@ -67,6 +69,7 @@ describe("tourSteps", () => {
       "observerHome",
       "teamWeek",
       "metrics",
+      "metricsDates",
       "settings",
       "help",
     ]);
@@ -79,9 +82,20 @@ describe("tourSteps", () => {
       "invite",
       "board",
       "metrics",
+      "metricsDates",
       "settings",
       "help",
     ]);
+  });
+
+  it("shows the calendar for the days right after the metrics, wherever those show", () => {
+    for (const who of EVERYONE) {
+      const steps = tourSteps(who);
+      const metrics = steps.findIndex((step) => step.id === "metrics");
+      if (metrics === -1) continue;
+
+      expect(steps[metrics + 1]).toEqual({ id: "metricsDates", path: "/metrics", targets: ["metrics-dates"] });
+    }
   });
 
   it("shows the team's tasks right where they're picked, in the timer", () => {
@@ -117,6 +131,14 @@ describe("tourStatus", () => {
     expect(tourStatus(9, 9)).toBe("done");
     expect(tourStatus(12, 9)).toBe("done");
   });
+
+  it("stays done when the tour grows after it was finished", () => {
+    for (const who of EVERYONE) {
+      const length = tourSteps(who).length;
+      expect(tourStatus(TOUR_DONE, length)).toBe("done");
+      expect(tourStatus(TOUR_DONE, length + 20)).toBe("done");
+    }
+  });
 });
 
 describe("resumeIndex", () => {
@@ -127,6 +149,7 @@ describe("resumeIndex", () => {
   it("starts over when it's new or finished", () => {
     expect(resumeIndex(null, 9)).toBe(0);
     expect(resumeIndex(9, 9)).toBe(0);
+    expect(resumeIndex(TOUR_DONE, 9)).toBe(0);
   });
 
   it("stays inside a tour that got shorter", () => {
