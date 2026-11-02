@@ -409,6 +409,21 @@
       "onPause": "En pausa",
       "pauses": "{duration} en pausa"
     },
+    "tabsLabel": "Qué tramos ver",
+    "history": {
+      "title": "Tramos históricos",
+      "person": "Persona",
+      "allPeople": "Todas las personas",
+      "dates": "Fechas",
+      "pickDates": "Elegir fechas",
+      "text": "Buscar tarea individual",
+      "task": "Tarea del equipo",
+      "allTasks": "Todas las tareas del equipo",
+      "clear": "Limpiar filtros",
+      "summary": "{count, plural, one {# tramo} other {# tramos}} · {hours}",
+      "empty": "Todavía no hay tramos registrados en tus proyectos.",
+      "noMatch": "Ningún tramo coincide con estos filtros."
+    },
     "errors": {
       "cannotTrack": "No podés registrar horas en ese proyecto.",
       "unknownTask": "Esa tarea del equipo ya no existe. Recargá la página.",
@@ -564,6 +579,14 @@
         "title": "Tus últimos tramos",
         "body": "Acá quedan tus tramos de trabajo. Con el lápiz corregís uno o lo pasás a una tarea del equipo; con el tacho lo borrás."
       },
+      "history": {
+        "title": "Todos los tramos del equipo",
+        "body": "En Tramos históricos ves las horas de todas las personas en tus proyectos. Filtrá por persona, fechas, tarea individual o tarea del equipo: los filtros se aplican solos y se combinan."
+      },
+      "historyObserver": {
+        "title": "Todos los tramos del equipo",
+        "body": "Más abajo están las horas de todas las personas en los proyectos que seguís. Filtrá por persona, fechas, tarea individual o tarea del equipo: los filtros se aplican solos y se combinan."
+      },
       "weekAdd": {
         "title": "¿Te olvidaste de darle play?",
         "body": "Cargá las horas a mano: elegí el proyecto, el día y las horas de inicio y fin."
@@ -613,5 +636,10 @@
         "body": "Si querés repasar algo, tocá el botón de ayuda y retomás el tour donde lo dejaste. En el celular está dentro del menú."
       }
     }
+  },
+  "pagination": {
+    "label": "Páginas",
+    "previous": "Anterior",
+    "next": "Siguiente"
   }
 }

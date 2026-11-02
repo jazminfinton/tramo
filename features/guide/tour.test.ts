@@ -36,6 +36,7 @@ describe("tourSteps", () => {
       "tasks",
       "popOut",
       "recent",
+      "history",
       "weekAdd",
       "weekPaid",
       "weekTeam",
@@ -54,6 +55,7 @@ describe("tourSteps", () => {
       "tasks",
       "popOut",
       "recent",
+      "history",
       "weekAdd",
       "weekPaid",
       "weekTeam",
@@ -71,6 +73,7 @@ describe("tourSteps", () => {
     expect(ids({ persona: "observer", isAdmin: false })).toEqual([
       "welcomeObserver",
       "observerHome",
+      "historyObserver",
       "teamWeek",
       "metrics",
       "metricsDates",

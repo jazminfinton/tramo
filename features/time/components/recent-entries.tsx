@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 
 import { AddEntryButton } from "@/features/time/components/entry-buttons";
 import { EntryRow } from "@/features/time/components/entry-row";
+import { EntryTabs } from "@/features/time/components/entry-tabs";
 import type { TimerPageData } from "@/features/time/queries";
 
 type RecentEntriesProps = {
@@ -19,8 +20,9 @@ export async function RecentEntries({ entries, projects, tasks, suggestions, tim
 
   return (
     <section data-tour="recent-entries" className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-display text-xs tracking-widest text-ink-dim uppercase">{t("title")}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="sr-only">{t("title")}</h2>
+        <EntryTabs active="recent" />
         <AddEntryButton {...shared} />
       </div>
 

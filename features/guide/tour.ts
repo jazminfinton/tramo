@@ -19,6 +19,8 @@ export type TourStepId =
   | "tasks"
   | "popOut"
   | "recent"
+  | "history"
+  | "historyObserver"
   | "weekAdd"
   | "weekPaid"
   | "weekTeam"
@@ -52,6 +54,7 @@ const TRACKER = [
   step("tasks", "/", "timer-task"),
   step("popOut", "/", "timer-pop-out"),
   step("recent", "/", "recent-entries"),
+  step("history", "/", "entry-tabs"),
   step("weekAdd", "/week", "week-add"),
   step("weekPaid", "/week", "week-day-paid"),
   step("weekTeam", "/week", "week-tabs"),
@@ -59,6 +62,7 @@ const TRACKER = [
 const OBSERVER = [
   step("welcomeObserver", "/"),
   step("observerHome", "/", "observer-home"),
+  step("historyObserver", "/", "history-filters"),
   step("teamWeek", "/week", "team-blocks"),
 ];
 const METRICS = [step("metrics", "/metrics", "metrics-filters"), step("metricsDates", "/metrics", "metrics-dates")];
