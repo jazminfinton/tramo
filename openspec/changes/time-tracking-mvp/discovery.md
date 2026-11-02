@@ -16,6 +16,8 @@ A minimalist, orderly web app to track time per person, per project, and per tas
 
 **Decided:** it's for visibility only. No billing, no hourly rates, no invoicing, no clients.
 
+**Decided (2026-11-02), widening the one above:** people can mark their own hours as paid. It's only a mark, for knowing what's been paid and what's left: still no amounts, rates or invoices.
+
 **Decided:** they build it in-house instead of using Toggl Track or Clockify because they want it fully custom and plan to keep evolving it.
 
 ## Users and roles
@@ -79,6 +81,13 @@ A minimalist, orderly web app to track time per person, per project, and per tas
     - Metrics still rank tasks per project: by the shared task's name when the entry has one, by its free text otherwise.
     - Renaming and removing tasks is left for later.
 - **Decided (v1): manual entry and editing.** People can add or fix time when they forgot the timer. Manually created or edited entries are flagged, so the metrics stay honest.
+- **Decided (2026-11-02): paid hours.** The owner asked for each person to mark as paid or unpaid the hours they worked, day by day, for finer traceability. A day can hold hours on projects paid apart, so the mark lives on each block, and a day reads from its blocks:
+  - A control on each day marks all its finished blocks at once, and a control on each block marks that one. A day with some of each reads as partial.
+  - Only the owner of the hours marks them. Admins don't mark anyone else's. Whoever already sees the blocks of a project sees the mark, read-only.
+  - The mark is the moment it was made (`paidAt`), and marking again keeps the first date. It isn't an edit, so it doesn't flag the block as edited.
+  - An open block can't be marked, and the database refuses it. A block added later to a paid day comes in unpaid, and the day turns partial.
+  - Changing a paid block's times takes the mark off, since what was paid no longer matches, and the edit dialog says so before saving. Changing what it's about keeps it.
+  - A person's week shows how many of its hours are unpaid, a block still running included. Metrics don't change.
 - **Decided (v1): forgotten-timer alert.** When a timer has run for 8 hours, the app warns the user and asks them to confirm or fix it.
 
 ## Views and metrics (v1)

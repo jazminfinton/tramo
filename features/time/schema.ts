@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { TASK_NAME_MAX, tidyTaskName } from "@/features/time/task-text";
+import { isIsoDate } from "@/lib/zoned";
 
 export const DESCRIPTION_MAX = 200;
 
@@ -25,6 +26,18 @@ export const startTimerSchema = z.object({
   projectId: z.string().min(1).max(64),
   taskId,
   description,
+});
+
+/** What marking one block as paid, or taking the mark off, needs. */
+export const paidEntrySchema = z.object({
+  entryId: z.string().min(1).max(64),
+  paid: z.boolean(),
+});
+
+/** What marking a whole day as paid, or taking the mark off, needs. */
+export const paidDaySchema = z.object({
+  day: z.string().refine(isIsoDate),
+  paid: z.boolean(),
 });
 
 // The manual-entry form, shared by the dialog and its actions. Times arrive as

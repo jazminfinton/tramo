@@ -37,6 +37,7 @@ describe("tourSteps", () => {
       "popOut",
       "recent",
       "weekAdd",
+      "weekPaid",
       "weekTeam",
       "metrics",
       "metricsDates",
@@ -53,6 +54,7 @@ describe("tourSteps", () => {
       "popOut",
       "recent",
       "weekAdd",
+      "weekPaid",
       "weekTeam",
       "metrics",
       "metricsDates",
@@ -96,6 +98,21 @@ describe("tourSteps", () => {
 
       expect(steps[metrics + 1]).toEqual({ id: "metricsDates", path: "/metrics", targets: ["metrics-dates"] });
     }
+  });
+
+  it("shows how to mark hours as paid in the person's own week", () => {
+    const steps = tourSteps({ persona: "tracker", isAdmin: false });
+
+    expect(steps.find((step) => step.id === "weekPaid")).toEqual({
+      id: "weekPaid",
+      path: "/week",
+      targets: ["week-day-paid"],
+    });
+  });
+
+  it("doesn't show it to people who don't log hours", () => {
+    expect(ids({ persona: "observer", isAdmin: false })).not.toContain("weekPaid");
+    expect(ids({ persona: "unassigned", isAdmin: true })).not.toContain("weekPaid");
   });
 
   it("shows the team's tasks right where they're picked, in the timer", () => {

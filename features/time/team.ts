@@ -27,6 +27,7 @@ export function listTeamEntries(
       endedAt: true,
       pausedAt: true,
       pausedSeconds: true,
+      paidAt: true,
       source: true,
       editedAt: true,
       project: { select: { name: true, color: true } },

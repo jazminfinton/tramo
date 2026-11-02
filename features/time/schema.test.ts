@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { entryFormSchema, entryFromForm, startTimerSchema, taskNameSchema } from "@/features/time/schema";
+import {
+  entryFormSchema,
+  entryFromForm,
+  paidDaySchema,
+  paidEntrySchema,
+  startTimerSchema,
+  taskNameSchema,
+} from "@/features/time/schema";
 import { TASK_NAME_MAX } from "@/features/time/task-text";
 
 describe("taskNameSchema", () => {
@@ -25,6 +32,36 @@ describe("startTimerSchema", () => {
     expect(start("").taskId).toBeNull();
     expect(start(null).taskId).toBeNull();
     expect(start().taskId).toBeNull();
+  });
+});
+
+describe("paidEntrySchema", () => {
+  it("takes a block and whether it's paid", () => {
+    expect(paidEntrySchema.parse({ entryId: "e1", paid: false })).toEqual({ entryId: "e1", paid: false });
+  });
+
+  it("refuses anything else", () => {
+    for (const input of [
+      { entryId: "", paid: true },
+      { entryId: "e".repeat(65), paid: true },
+      { entryId: 1, paid: true },
+      { entryId: "e1", paid: "true" },
+      { entryId: "e1" },
+    ]) {
+      expect(paidEntrySchema.safeParse(input).success, JSON.stringify(input)).toBe(false);
+    }
+  });
+});
+
+describe("paidDaySchema", () => {
+  it("takes a calendar day and whether it's paid", () => {
+    expect(paidDaySchema.parse({ day: "2026-09-23", paid: true })).toEqual({ day: "2026-09-23", paid: true });
+  });
+
+  it("refuses what isn't a real day", () => {
+    for (const day of ["2026-02-30", "23/09/2026", "", 20260923]) {
+      expect(paidDaySchema.safeParse({ day, paid: true }).success, String(day)).toBe(false);
+    }
   });
 });
 

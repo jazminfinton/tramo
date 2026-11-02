@@ -215,3 +215,31 @@ describe("shared tasks", () => {
     expect(await db.prisma.task.findUniqueOrThrow({ where: { id: task.id } })).toMatchObject({ createdById: null });
   });
 });
+
+describe("the paid mark", () => {
+  it("rejects it on an entry still open", async () => {
+    const user = await createUser(db, "ana@test.dev");
+
+    await expect(
+      db.prisma.timeEntry.create({
+        data: { userId: user.id, projectId, startedAt: at("2026-09-21T10:00:00Z"), paidAt: at("2026-09-21T12:00:00Z") },
+      }),
+    ).rejects.toThrow(/TimeEntry_paid_only_when_finished/);
+  });
+
+  it("takes it on a finished entry", async () => {
+    const user = await createUser(db, "ana@test.dev");
+
+    await expect(
+      db.prisma.timeEntry.create({
+        data: {
+          userId: user.id,
+          projectId,
+          startedAt: at("2026-09-21T10:00:00Z"),
+          endedAt: at("2026-09-21T11:00:00Z"),
+          paidAt: at("2026-09-21T12:00:00Z"),
+        },
+      }),
+    ).resolves.toMatchObject({ paidAt: at("2026-09-21T12:00:00Z") });
+  });
+});

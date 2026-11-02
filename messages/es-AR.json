@@ -284,6 +284,8 @@
     "next": "Semana siguiente",
     "backToThisWeek": "Volver a esta semana",
     "total": "Total",
+    "unpaid": "{hours} sin pagar",
+    "allPaid": "Todo pagado",
     "project": "Proyecto",
     "caption": "Horas por proyecto y por día, semana del {week}",
     "blocks": "Tramos",
@@ -365,7 +367,8 @@
       "generic": "Algo salió mal. Probá de nuevo.",
       "pausesTooLong": "Este tramo tiene pausas: tiene que durar más que el tiempo que estuvo en pausa."
     },
-    "lastsWithPauses": "Dura {duration}, sin contar {pauses} en pausa"
+    "lastsWithPauses": "Dura {duration}, sin contar {pauses} en pausa",
+    "losesPaid": "deja de estar marcado como pagado"
   },
   "timer": {
     "title": "Timer",
@@ -395,6 +398,7 @@
       "empty": "Todavía no registraste horas. Elegí un proyecto y dale play.",
       "noDescription": "Sin descripción",
       "edited": "editado",
+      "paid": "pagado",
       "now": "ahora",
       "running": "En curso",
       "onPause": "En pausa",
@@ -430,6 +434,24 @@
       "nameRequired": "Poné un nombre.",
       "nameTooLong": "Máximo 60 caracteres.",
       "cannotTrack": "Para crear tareas del equipo tenés que registrar horas en algún proyecto.",
+      "generic": "Algo salió mal. Probá de nuevo."
+    }
+  },
+  "paid": {
+    "status": {
+      "paid": "Pagado",
+      "partial": "Parcial",
+      "unpaid": "Sin pagar"
+    },
+    "markDay": "Marcar {day} como pagado",
+    "unmarkDay": "Marcar {day} como no pagado",
+    "markEntry": "Marcar {entry} como pagado",
+    "unmarkEntry": "Marcar {entry} como no pagado",
+    "errors": {
+      "notFound": "Ese tramo ya no existe. Recargá la página.",
+      "forbidden": "Solo podés marcar tus propias horas.",
+      "running": "Ese tramo sigue abierto. Terminalo para marcarlo como pagado.",
+      "invalid": "No pudimos leer esa marca. Recargá la página.",
       "generic": "Algo salió mal. Probá de nuevo."
     }
   },
@@ -509,6 +531,10 @@
       "weekAdd": {
         "title": "¿Te olvidaste de darle play?",
         "body": "Cargá las horas a mano: elegí el proyecto, el día y las horas de inicio y fin."
+      },
+      "weekPaid": {
+        "title": "¿Ya te lo pagaron?",
+        "body": "Marcá un día entero como pagado desde acá, o un tramo solo con el botón de su fila. Lo que sumes después a ese día queda sin pagar, y el día pasa a parcial."
       },
       "weekTeam": {
         "title": "Tu semana y la del equipo",

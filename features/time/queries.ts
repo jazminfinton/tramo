@@ -1,5 +1,6 @@
 import "server-only";
 
+import { unpaidMinutes } from "@/features/time/paid-status";
 import { listTasks } from "@/features/time/tasks";
 import { listTeamEntries } from "@/features/time/team";
 import { recentDescriptions } from "@/features/time/timer";
@@ -17,6 +18,7 @@ const ENTRY_SELECT = {
   endedAt: true,
   pausedAt: true,
   pausedSeconds: true,
+  paidAt: true,
   source: true,
   editedAt: true,
   project: { select: { name: true, color: true } },
@@ -111,6 +113,7 @@ export async function getWeekData(
     currentWeek: resolveWeek(undefined, timeZone, now),
     entries,
     buckets: bucketWeek(entries, range.days, timeZone, now),
+    unpaid: unpaidMinutes(entries, now),
     weekProjects: [...projectsById].map(([id, project]) => ({ id, ...project })),
   };
 }

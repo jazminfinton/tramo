@@ -279,6 +279,66 @@ describe("updateEntry", () => {
   });
 });
 
+describe("a block marked as paid", () => {
+  const markedAt = at("2026-09-25T12:00:00Z");
+  const block = { startedAt: at("2026-09-23T12:00:00Z"), endedAt: at("2026-09-23T13:00:00Z") };
+
+  async function paidEntry() {
+    return db.prisma.timeEntry.create({ data: { userId: ana, projectId: projectA, ...block, paidAt: markedAt } });
+  }
+
+  const edit = (entryId: string, what: Partial<Parameters<typeof updateEntry>[1]>) =>
+    updateEntry(db.prisma, {
+      actor: actor(ana),
+      workspaceId,
+      entryId,
+      projectId: projectA,
+      description: "",
+      ...block,
+      ...what,
+    });
+
+  const paidAt = async (id: string) => (await db.prisma.timeEntry.findUniqueOrThrow({ where: { id } })).paidAt;
+
+  it("loses the mark when its times change: what was paid no longer matches", async () => {
+    const entry = await paidEntry();
+
+    expect(await edit(entry.id, { endedAt: at("2026-09-23T14:00:00Z") })).toEqual({ ok: true });
+
+    expect(await paidAt(entry.id)).toBeNull();
+  });
+
+  it("loses it too when it moves to another time of the same length", async () => {
+    const entry = await paidEntry();
+
+    await edit(entry.id, { startedAt: at("2026-09-23T15:00:00Z"), endedAt: at("2026-09-23T16:00:00Z") });
+
+    expect(await paidAt(entry.id)).toBeNull();
+  });
+
+  it("keeps it when the form left the times alone", async () => {
+    const entry = await paidEntry();
+
+    await edit(entry.id, { description: "Otra cosa", keepTimes: true });
+
+    expect(await paidAt(entry.id)).toEqual(markedAt);
+  });
+
+  it("keeps it when only what the block is about changes", async () => {
+    const entry = await paidEntry();
+
+    expect(await edit(entry.id, { description: "Otra cosa" })).toEqual({ ok: true });
+
+    expect(await paidAt(entry.id)).toEqual(markedAt);
+  });
+
+  it("starts unpaid when it's added by hand", async () => {
+    await createManualEntry(db.prisma, { actor: actor(ana), workspaceId, projectId: projectA, description: "", ...block });
+
+    expect((await db.prisma.timeEntry.findFirstOrThrow()).paidAt).toBeNull();
+  });
+});
+
 describe("blocks on a shared task", () => {
   let taskId: string;
   let theirs: string;

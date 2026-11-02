@@ -278,6 +278,9 @@ model TimeEntry {
   pausedAt      DateTime?   @db.Timestamptz(3)
   // Seconds spent paused so far, the pause in course aside.
   pausedSeconds Int         @default(0)
+  // When its owner marked it as paid; null means unpaid. A finished entry only:
+  // a CHECK constraint in the migrations. Just the mark: no amounts, no rates.
+  paidAt        DateTime?   @db.Timestamptz(3)
   source        EntrySource @default(TIMER)
   // Set whenever times are changed after the fact, so metrics stay honest.
   editedAt      DateTime?   @db.Timestamptz(3)

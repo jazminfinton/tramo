@@ -30,6 +30,8 @@ export type EditableEntry = {
   endedAt: string;
   /** Seconds the timer measured in pauses: they stay out of the time worked. */
   pausedSeconds: number;
+  /** Marked as paid: new times take the mark off. */
+  paid: boolean;
 };
 
 type EntryDialogProps = {
@@ -81,6 +83,9 @@ function initialValues(entry: EditableEntry | undefined, projects: EntryDialogPr
  * A block the timer paused keeps its pauses: they show here, and stay out of
  * its time whatever the new times are. Times left untouched aren't rebuilt
  * from the form, so a task paused overnight keeps its real span.
+ *
+ * A block marked as paid loses the mark if its times change, and says so here
+ * before it's saved.
  */
 export function EntryDialog(props: EntryDialogProps) {
   const t = useTranslations("entries");
@@ -306,7 +311,7 @@ function EntryForm({ onClose, entry, projects, tasks, suggestions, timeZone }: E
                   pauses: describeDuration(pausedMinutes),
                 })
               : t("lasts", { duration: describeDuration(preview.minutes) })
-          }${crossesMidnight ? ` · ${t("nextDay")}` : ""}`}
+          }${crossesMidnight ? ` · ${t("nextDay")}` : ""}${entry?.paid && !untouched ? ` · ${t("losesPaid")}` : ""}`}
       </p>
 
       {errors.form && (

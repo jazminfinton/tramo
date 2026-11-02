@@ -20,8 +20,10 @@ async function TeamEntryRow({ entry }: { entry: TeamEntry }) {
     <li className="flex items-center gap-3 px-4 py-2.5 not-first:hairline-t">
       <Avatar name={entry.user.name} size="sm" />
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm">
-          {entryTitle(entry) || <span className="text-ink-dim">{t("noDescription")}</span>}
+        {/* Next to the title: the line below has no room to spare on a phone. */}
+        <span className="flex min-w-0 items-baseline gap-2 text-sm">
+          <span className="truncate">{entryTitle(entry) || <span className="text-ink-dim">{t("noDescription")}</span>}</span>
+          {entry.paidAt && <span className="flex-none font-display text-xs text-accent">{t("paid")}</span>}
         </span>
         <span className="flex min-w-0 items-center gap-1.5 text-xs text-ink-dim">
           <span className="truncate">{entry.user.name}</span>

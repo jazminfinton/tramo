@@ -17,6 +17,9 @@ import { taskInWorkspace } from "@/features/time/tasks";
  *   its span, never its paused time, so the span has to leave time worked.
  * - A block can sit under one of its workspace's shared tasks, next to its
  *   free-text description. Any block can be moved onto one, or off it, later.
+ * - A block marked as paid (features/time/paid.ts) loses the mark when its
+ *   times change, since what was paid no longer matches. What it's about can
+ *   change freely.
  */
 
 export type EntryResult =
@@ -117,7 +120,7 @@ export async function updateEntry(
   return db.$transaction(async (tx) => {
     const entry = await tx.timeEntry.findFirst({
       where: { id: input.entryId, project: { workspaceId: input.workspaceId } },
-      select: { id: true, userId: true, endedAt: true, pausedSeconds: true },
+      select: { id: true, userId: true, startedAt: true, endedAt: true, pausedSeconds: true },
     });
     if (!entry) return fail("notFound");
     if (entry.userId !== input.actor.userId && !input.actor.isAdmin) return fail("forbidden");
@@ -144,9 +147,16 @@ export async function updateEntry(
     await lockPerson(tx, entry.userId);
     if (await overlaps(tx, entry.userId, input.startedAt, input.endedAt, entry.id)) return fail("overlap");
 
+    const sameTimes =
+      input.startedAt.getTime() === entry.startedAt.getTime() && input.endedAt.getTime() === entry.endedAt.getTime();
     await tx.timeEntry.update({
       where: { id: entry.id },
-      data: { ...what, startedAt: input.startedAt, endedAt: input.endedAt },
+      data: {
+        ...what,
+        startedAt: input.startedAt,
+        endedAt: input.endedAt,
+        ...(sameTimes ? {} : { paidAt: null }),
+      },
     });
     return ok;
   });
