@@ -60,7 +60,9 @@ export async function getMetrics(input: {
 
   const byProject = byProjectRows.flatMap((row) => {
     const project = projectById.get(row.projectId);
-    return project ? [{ id: project.id, name: project.name, color: project.color, minutes: row.minutes }] : [];
+    return project
+      ? [{ id: project.id, name: project.name, color: project.color, minutes: row.minutes, unpaid: row.unpaid }]
+      : [];
   });
 
   // Series per day or week: the top projects keep their own color, the tail folds into one.
@@ -98,6 +100,7 @@ export async function getMetrics(input: {
     })),
     selected,
     total: byProject.reduce((sum, project) => sum + project.minutes, 0),
+    unpaid: byProject.reduce((sum, project) => sum + project.unpaid, 0),
     byPerson,
     byProject,
     tasks: tasks.flatMap((task) => {

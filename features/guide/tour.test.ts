@@ -41,6 +41,7 @@ describe("tourSteps", () => {
       "weekTeam",
       "metrics",
       "metricsDates",
+      "metricsPaid",
       "settings",
       "help",
     ]);
@@ -58,6 +59,7 @@ describe("tourSteps", () => {
       "weekTeam",
       "metrics",
       "metricsDates",
+      "metricsPaid",
       "invite",
       "board",
       "settings",
@@ -85,6 +87,7 @@ describe("tourSteps", () => {
       "board",
       "metrics",
       "metricsDates",
+      "metricsPaid",
       "settings",
       "help",
     ]);
@@ -113,6 +116,24 @@ describe("tourSteps", () => {
   it("doesn't show it to people who don't log hours", () => {
     expect(ids({ persona: "observer", isAdmin: false })).not.toContain("weekPaid");
     expect(ids({ persona: "unassigned", isAdmin: true })).not.toContain("weekPaid");
+  });
+
+  it("shows how to mark a range as paid to whoever can, right after the days", () => {
+    for (const who of [
+      { persona: "tracker", isAdmin: false },
+      { persona: "tracker", isAdmin: true },
+      { persona: "observer", isAdmin: true },
+      { persona: "unassigned", isAdmin: true },
+    ] as const) {
+      const steps = tourSteps(who);
+      const dates = steps.findIndex((step) => step.id === "metricsDates");
+
+      expect(steps[dates + 1]).toEqual({ id: "metricsPaid", path: "/metrics", targets: ["metrics-paid"] });
+    }
+  });
+
+  it("leaves it out for an observer, who has no hours to mark", () => {
+    expect(ids({ persona: "observer", isAdmin: false })).not.toContain("metricsPaid");
   });
 
   it("shows the team's tasks right where they're picked, in the timer", () => {

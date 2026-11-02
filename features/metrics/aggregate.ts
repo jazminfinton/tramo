@@ -17,9 +17,11 @@ import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 
 export type MetricsScope = { projectIds: string[]; start: Date; end: Date; now: Date };
 
-const minutes = (now: Date) => Prisma.sql`SUM(GREATEST(0,
+const worked = (now: Date) => Prisma.sql`GREATEST(0,
   EXTRACT(EPOCH FROM (COALESCE(e."endedAt", e."pausedAt", ${now}) - e."startedAt")) - e."pausedSeconds"
-) / 60)::float8`;
+) / 60`;
+
+const minutes = (now: Date) => Prisma.sql`SUM(${worked(now)})::float8`;
 
 const where = (scope: MetricsScope) => Prisma.sql`
   e."projectId" = ANY(${scope.projectIds})
@@ -41,16 +43,18 @@ export async function minutesByPerson(db: PrismaClient, scope: MetricsScope) {
   );
 }
 
+/** Minutes per project, and how many of them nobody has marked as paid, a running block included. */
 export async function minutesByProject(db: PrismaClient, scope: MetricsScope) {
   if (scope.projectIds.length === 0) return [];
-  return round(
-    await db.$queryRaw<{ projectId: string; minutes: number }[]>`
-      SELECT e."projectId" AS "projectId", ${minutes(scope.now)} AS minutes
-      FROM "TimeEntry" e
-      WHERE ${where(scope)}
-      GROUP BY e."projectId"
-      ORDER BY minutes DESC`,
-  );
+  const rows = await db.$queryRaw<{ projectId: string; minutes: number; unpaid: number }[]>`
+    SELECT e."projectId" AS "projectId",
+           ${minutes(scope.now)} AS minutes,
+           COALESCE(SUM(${worked(scope.now)}) FILTER (WHERE e."paidAt" IS NULL), 0)::float8 AS unpaid
+    FROM "TimeEntry" e
+    WHERE ${where(scope)}
+    GROUP BY e."projectId"
+    ORDER BY minutes DESC`;
+  return round(rows).map((row) => ({ ...row, unpaid: Math.round(row.unpaid) }));
 }
 
 /**

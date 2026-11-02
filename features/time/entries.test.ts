@@ -284,7 +284,9 @@ describe("a block marked as paid", () => {
   const block = { startedAt: at("2026-09-23T12:00:00Z"), endedAt: at("2026-09-23T13:00:00Z") };
 
   async function paidEntry() {
-    return db.prisma.timeEntry.create({ data: { userId: ana, projectId: projectA, ...block, paidAt: markedAt } });
+    return db.prisma.timeEntry.create({
+      data: { userId: ana, projectId: projectA, ...block, paidAt: markedAt, paidById: ana },
+    });
   }
 
   const edit = (entryId: string, what: Partial<Parameters<typeof updateEntry>[1]>) =>
@@ -305,7 +307,10 @@ describe("a block marked as paid", () => {
 
     expect(await edit(entry.id, { endedAt: at("2026-09-23T14:00:00Z") })).toEqual({ ok: true });
 
-    expect(await paidAt(entry.id)).toBeNull();
+    expect(await db.prisma.timeEntry.findUniqueOrThrow({ where: { id: entry.id } })).toMatchObject({
+      paidAt: null,
+      paidById: null,
+    });
   });
 
   it("loses it too when it moves to another time of the same length", async () => {

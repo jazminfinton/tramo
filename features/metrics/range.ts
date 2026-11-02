@@ -1,16 +1,15 @@
+import { MAX_RANGE_DAYS } from "@/lib/date-range";
 import { DEFAULT_METRIC_RANGE, isMetricRange, type MetricRange } from "@/lib/metric-views";
 import { isIsoDate, isoDaysBetween, isoWeekStart, shiftIsoDate, zonedInstant, zonedWeekStart } from "@/lib/zoned";
 
 // The presets themselves live in lib/metric-views.ts, shared with the
 // projects' admin; the screens here keep reaching them through this module.
 export { METRIC_RANGES, type MetricRange } from "@/lib/metric-views";
+export { MAX_RANGE_DAYS };
 
 /** A range picked day by day on the calendar, instead of a preset. */
 export const CUSTOM_RANGE = "custom";
 export type RangeKey = MetricRange | typeof CUSTOM_RANGE;
-
-/** The longest range that can be picked by hand: a year, its leap day included. */
-export const MAX_RANGE_DAYS = 366;
 
 // Up to a month a picked range reads day by day; a longer one would turn its
 // days into slivers, so it reads week by week.

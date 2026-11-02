@@ -4,6 +4,9 @@ import { isoDaysBetween } from "@/lib/zoned";
 // A range of calendar days, for a calendar that picks one. Days travel as ISO
 // dates ("2026-09-23"), which sort as text: comparing them compares the days.
 
+/** The longest range that can be picked by hand: a year, its leap day included. */
+export const MAX_RANGE_DAYS = 366;
+
 /** Two calendar days, the first and the last, both included. */
 export type DayRange = { from: string; to: string };
 

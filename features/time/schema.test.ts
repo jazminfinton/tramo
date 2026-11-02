@@ -5,6 +5,8 @@ import {
   entryFromForm,
   paidDaySchema,
   paidEntrySchema,
+  paidRangeSchema,
+  setPaidRangeSchema,
   startTimerSchema,
   taskNameSchema,
 } from "@/features/time/schema";
@@ -62,6 +64,47 @@ describe("paidDaySchema", () => {
     for (const day of ["2026-02-30", "23/09/2026", "", 20260923]) {
       expect(paidDaySchema.safeParse({ day, paid: true }).success, String(day)).toBe(false);
     }
+  });
+});
+
+describe("paidRangeSchema", () => {
+  const range = { from: "2026-09-01", to: "2026-09-30", projectId: null };
+
+  it("takes two days in order, with a project or without one", () => {
+    expect(paidRangeSchema.parse(range)).toEqual(range);
+    expect(paidRangeSchema.parse({ ...range, projectId: "p1" }).projectId).toBe("p1");
+    expect(paidRangeSchema.parse({ ...range, to: "2026-09-01" }).to).toBe("2026-09-01");
+  });
+
+  it("takes a year at most", () => {
+    expect(paidRangeSchema.safeParse({ ...range, from: "2026-01-01", to: "2027-01-01" }).success).toBe(true);
+    expect(paidRangeSchema.safeParse({ ...range, from: "2026-01-01", to: "2027-01-02" }).success).toBe(false);
+  });
+
+  it("refuses what doesn't make a range", () => {
+    for (const input of [
+      { ...range, from: "2026-09-30", to: "2026-09-01" },
+      { ...range, from: "2026-02-30" },
+      { ...range, to: "30/09/2026" },
+      { ...range, projectId: "" },
+      { ...range, projectId: "p".repeat(65) },
+      { from: range.from, to: range.to },
+    ]) {
+      expect(paidRangeSchema.safeParse(input).success, JSON.stringify(input)).toBe(false);
+    }
+  });
+});
+
+describe("setPaidRangeSchema", () => {
+  const range = { from: "2026-09-01", to: "2026-09-30", projectId: null };
+
+  it("takes a range and whether it's paid", () => {
+    expect(setPaidRangeSchema.parse({ ...range, paid: false })).toEqual({ ...range, paid: false });
+  });
+
+  it("refuses a range that isn't one, or no answer", () => {
+    expect(setPaidRangeSchema.safeParse({ ...range, from: "2026-09-30", to: "2026-09-01", paid: true }).success).toBe(false);
+    expect(setPaidRangeSchema.safeParse(range).success).toBe(false);
   });
 });
 

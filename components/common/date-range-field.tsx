@@ -2,7 +2,7 @@
 
 import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { Dropdown } from "@/components/common/dropdown";
 import { useAnchoredPopover } from "@/components/common/use-anchored-popover";
@@ -37,6 +37,10 @@ type DateRangeFieldProps = {
   max?: string;
   /** The most days a range can cover. */
   maxDays?: number;
+  /** The trigger's icon, for a calendar that does something else with the range. */
+  icon?: ReactNode;
+  /** What the calendar asks for at each step, when it isn't the usual. */
+  hints?: { start: string; end: string };
   /** Marks the trigger for the guided tour (features/guide/tour.ts). */
   "data-tour"?: string;
   className?: string;
@@ -66,6 +70,8 @@ export function DateRangeField({
   placeholder,
   max,
   maxDays,
+  icon,
+  hints,
   "data-tour": tourKey,
   className = "",
 }: DateRangeFieldProps) {
@@ -203,7 +209,7 @@ export function DateRangeField({
           picked ? "bg-tile text-ink" : "bg-surface text-ink-muted hover:text-ink aria-expanded:text-ink"
         }`}
       >
-        <CalendarRange className="icon size-4 flex-none" aria-hidden />
+        {icon ?? <CalendarRange className="icon size-4 flex-none" aria-hidden />}
         <span className="sr-only">{`${label}: `}</span>
         <span className={picked ? "digits" : ""}>{picked ? formatDayRange(value) : placeholder}</span>
       </button>
@@ -369,7 +375,7 @@ export function DateRangeField({
 
           <div className="hairline-t mt-3 flex items-center justify-between gap-3 pt-3">
             <p aria-live="polite" className="text-xs text-ink-muted">
-              {anchor ? t("pickEnd") : t("pickStart")}
+              {anchor ? (hints?.end ?? t("pickEnd")) : (hints?.start ?? t("pickStart"))}
             </p>
             <button
               type="button"

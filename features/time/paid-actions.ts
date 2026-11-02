@@ -2,16 +2,24 @@
 
 import { refresh } from "next/cache";
 
-import { setDayPaid, setEntryPaid, type PaidResult } from "@/features/time/paid";
-import { paidDaySchema, paidEntrySchema } from "@/features/time/schema";
+import {
+  paidRangePreview,
+  setDayPaid,
+  setEntryPaid,
+  setRangePaid,
+  type PaidRangePreview,
+  type PaidResult,
+} from "@/features/time/paid";
+import { paidDaySchema, paidEntrySchema, paidRangeSchema, setPaidRangeSchema } from "@/features/time/schema";
 import { DEFAULT_TIME_ZONE } from "@/i18n/config";
 import { requireMember } from "@/lib/dal";
 import { prisma } from "@/lib/db";
 import type { ActionResult } from "@/lib/form";
 
-// Whose hours these are comes from the session, never from the client: nobody
-// can mark somebody else's hours through these actions. Days are read in the
-// person's own time zone, and the moment of the mark is the server's.
+// Whose hours these are comes from the session, never from the client: only an
+// admin's range reaches somebody else's hours, and that's decided here too. Days
+// are read in the person's own time zone, and the moment of the mark is the
+// server's.
 
 function settle(result: PaidResult): ActionResult {
   if (!result.ok) return { error: result.reason };
@@ -43,4 +51,45 @@ export async function setDayPaidAction(day: string, paid: boolean): Promise<Acti
       now: new Date(),
     }),
   );
+}
+
+/** What marking a range would touch. It writes nothing, so the page stays as it is. */
+export async function previewPaidRangeAction(
+  from: string,
+  to: string,
+  projectId: string | null,
+): Promise<{ preview: PaidRangePreview } | { error: string }> {
+  const { user, workspace, isAdmin } = await requireMember();
+  const parsed = paidRangeSchema.safeParse({ from, to, projectId });
+  if (!parsed.success) return { error: "invalid" };
+
+  return {
+    preview: await paidRangePreview(prisma, {
+      actor: { userId: user.id, isAdmin },
+      workspaceId: workspace.id,
+      timeZone: user.timeZone ?? DEFAULT_TIME_ZONE,
+      ...parsed.data,
+    }),
+  };
+}
+
+export async function setPaidRangeAction(
+  from: string,
+  to: string,
+  projectId: string | null,
+  paid: boolean,
+): Promise<{ count: number } | { error: string }> {
+  const { user, workspace, isAdmin } = await requireMember();
+  const parsed = setPaidRangeSchema.safeParse({ from, to, projectId, paid });
+  if (!parsed.success) return { error: "invalid" };
+
+  const result = await setRangePaid(prisma, {
+    actor: { userId: user.id, isAdmin },
+    workspaceId: workspace.id,
+    timeZone: user.timeZone ?? DEFAULT_TIME_ZONE,
+    ...parsed.data,
+    now: new Date(),
+  });
+  refresh();
+  return result;
 }

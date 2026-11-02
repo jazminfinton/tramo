@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { setDayPaid, setEntryPaid } from "@/features/time/paid";
+import { paidRangePreview, setDayPaid, setEntryPaid, setRangePaid } from "@/features/time/paid";
 import { createTestDb, createUser, type TestDb } from "@/lib/testing/db";
 
 const AR = "America/Argentina/Buenos_Aires"; // UTC-3
@@ -36,7 +36,11 @@ beforeEach(async () => {
   ).id;
 });
 
-function block(start: string, end: string | null, over: { userId?: string; projectId?: string; paidAt?: Date } = {}) {
+function block(
+  start: string,
+  end: string | null,
+  over: { userId?: string; projectId?: string; paidAt?: Date; paidById?: string; pausedSeconds?: number } = {},
+) {
   return db.prisma.timeEntry.create({
     data: { userId: ana, projectId, startedAt: at(start), endedAt: end ? at(end) : null, ...over },
   });
@@ -48,18 +52,25 @@ describe("setEntryPaid", () => {
   const mark = (entryId: string, paid = true, userId = ana, workspace = workspaceId) =>
     setEntryPaid(db.prisma, { userId, workspaceId: workspace, entryId, paid, now });
 
-  it("marks a finished block, remembering when", async () => {
+  it("marks a finished block, remembering when and who", async () => {
     const entry = await block("2026-09-23T12:00:00Z", "2026-09-23T13:00:00Z");
 
     expect(await mark(entry.id)).toEqual({ ok: true });
-    expect((await stored(entry.id)).paidAt).toEqual(now);
+    expect(await stored(entry.id)).toMatchObject({ paidAt: now, paidById: ana });
   });
 
   it("takes the mark off", async () => {
-    const entry = await block("2026-09-23T12:00:00Z", "2026-09-23T13:00:00Z", { paidAt: earlier });
+    const entry = await block("2026-09-23T12:00:00Z", "2026-09-23T13:00:00Z", { paidAt: earlier, paidById: ana });
 
     expect(await mark(entry.id, false)).toEqual({ ok: true });
-    expect((await stored(entry.id)).paidAt).toBeNull();
+    expect(await stored(entry.id)).toMatchObject({ paidAt: null, paidById: null });
+  });
+
+  it("lets the owner take off a mark somebody else made", async () => {
+    const entry = await block("2026-09-23T12:00:00Z", "2026-09-23T13:00:00Z", { paidAt: earlier, paidById: beto });
+
+    expect(await mark(entry.id, false)).toEqual({ ok: true });
+    expect(await stored(entry.id)).toMatchObject({ paidAt: null, paidById: null });
   });
 
   it("keeps the first date when it's marked again (a double click)", async () => {
@@ -110,8 +121,8 @@ describe("setDayPaid", () => {
 
     expect(await markDay("2026-09-23")).toEqual({ ok: true });
 
-    expect((await stored(morning.id)).paidAt).toEqual(now);
-    expect((await stored(afternoon.id)).paidAt).toEqual(now);
+    expect(await stored(morning.id)).toMatchObject({ paidAt: now, paidById: ana });
+    expect(await stored(afternoon.id)).toMatchObject({ paidAt: now, paidById: ana });
   });
 
   it("reads the day on the person's clock", async () => {
@@ -188,5 +199,198 @@ describe("setDayPaid", () => {
     await markDay("2026-09-23");
 
     expect((await stored(entry.id)).editedAt).toBeNull();
+  });
+});
+
+describe("setRangePaid", () => {
+  const SEPTEMBER = { from: "2026-09-01", to: "2026-09-30" };
+  const member = { userId: ana, isAdmin: false };
+
+  const markRange = (
+    over: Partial<Parameters<typeof setRangePaid>[1]> = {},
+  ) =>
+    setRangePaid(db.prisma, {
+      actor: { userId: ana, isAdmin: false },
+      workspaceId,
+      ...SEPTEMBER,
+      timeZone: AR,
+      projectId: null,
+      paid: true,
+      now,
+      ...over,
+    });
+
+  it("marks a person's finished blocks in the range, saying how many", async () => {
+    const first = await block("2026-09-01T12:00:00Z", "2026-09-01T13:00:00Z");
+    const last = await block("2026-09-30T12:00:00Z", "2026-09-30T13:00:00Z");
+
+    expect(await markRange()).toEqual({ count: 2 });
+
+    expect(await stored(first.id)).toMatchObject({ paidAt: now, paidById: ana });
+    expect(await stored(last.id)).toMatchObject({ paidAt: now, paidById: ana });
+  });
+
+  it("takes both days whole, on the person's clock", async () => {
+    // 02:30 UTC on the 1st is still August 31st in Buenos Aires.
+    const before = await block("2026-09-01T02:30:00Z", "2026-09-01T02:45:00Z");
+    // 02:30 UTC on October 1st is still September 30th there.
+    const lastNight = await block("2026-10-01T02:30:00Z", "2026-10-01T02:45:00Z");
+    // 03:30 UTC on October 1st is already October there.
+    const after = await block("2026-10-01T03:30:00Z", "2026-10-01T04:30:00Z");
+
+    expect(await markRange()).toEqual({ count: 1 });
+
+    expect((await stored(before.id)).paidAt).toBeNull();
+    expect((await stored(lastNight.id)).paidAt).toEqual(now);
+    expect((await stored(after.id)).paidAt).toBeNull();
+  });
+
+  it("only touches a member's own hours", async () => {
+    const theirs = await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z", { userId: beto });
+
+    expect(await markRange()).toEqual({ count: 0 });
+
+    expect((await stored(theirs.id)).paidAt).toBeNull();
+  });
+
+  it("lets an admin mark the whole team's, remembering who did", async () => {
+    const mine = await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    const theirs = await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z", { userId: beto });
+
+    expect(await markRange({ actor: { userId: ana, isAdmin: true } })).toEqual({ count: 2 });
+
+    expect(await stored(mine.id)).toMatchObject({ paidAt: now, paidById: ana });
+    expect(await stored(theirs.id)).toMatchObject({ paidAt: now, paidById: ana });
+  });
+
+  it("sticks to the chosen project", async () => {
+    const other = await db.prisma.project.create({ data: { workspaceId, name: "B", color: "red" } });
+    const chosen = await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    const notChosen = await block("2026-09-11T12:00:00Z", "2026-09-11T13:00:00Z", { projectId: other.id });
+
+    expect(await markRange({ projectId })).toEqual({ count: 1 });
+
+    expect((await stored(chosen.id)).paidAt).toEqual(now);
+    expect((await stored(notChosen.id)).paidAt).toBeNull();
+  });
+
+  it("leaves out a block still open", async () => {
+    const open = await block("2026-09-10T12:00:00Z", null);
+
+    expect(await markRange()).toEqual({ count: 0 });
+
+    expect((await stored(open.id)).paidAt).toBeNull();
+  });
+
+  it("keeps the date and the author of the blocks already marked", async () => {
+    const before = await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z", { paidAt: earlier, paidById: beto });
+
+    expect(await markRange()).toEqual({ count: 0 });
+
+    expect(await stored(before.id)).toMatchObject({ paidAt: earlier, paidById: beto });
+  });
+
+  it("takes the mark off, saying how many", async () => {
+    const inside = await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z", { paidAt: earlier, paidById: beto });
+    const outside = await block("2026-10-10T12:00:00Z", "2026-10-10T13:00:00Z", { paidAt: earlier, paidById: beto });
+    await block("2026-09-12T12:00:00Z", "2026-09-12T13:00:00Z");
+
+    expect(await markRange({ paid: false })).toEqual({ count: 1 });
+
+    expect(await stored(inside.id)).toMatchObject({ paidAt: null, paidById: null });
+    expect(await stored(outside.id)).toMatchObject({ paidAt: earlier, paidById: beto });
+  });
+
+  it("only touches this workspace, even for an admin", async () => {
+    const elsewhere = await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z", { projectId: otherProjectId });
+
+    expect(await markRange({ actor: { userId: ana, isAdmin: true } })).toEqual({ count: 0 });
+    expect(await markRange({ actor: { userId: ana, isAdmin: true }, projectId: otherProjectId })).toEqual({ count: 0 });
+
+    expect((await stored(elsewhere.id)).paidAt).toBeNull();
+  });
+
+  it("doesn't count as editing the blocks", async () => {
+    const entry = await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+
+    await markRange();
+
+    expect((await stored(entry.id)).editedAt).toBeNull();
+  });
+
+  it("sends one statement, however many blocks the range holds", async () => {
+    await db.prisma.timeEntry.createMany({
+      data: Array.from({ length: 300 }, (_, index) => ({
+        userId: ana,
+        projectId,
+        startedAt: new Date(Date.UTC(2026, 8, 10, 0, index * 2)),
+        endedAt: new Date(Date.UTC(2026, 8, 10, 0, index * 2 + 1)),
+      })),
+    });
+
+    let result: unknown;
+    const sent = await db.statementsOf(async () => {
+      result = await markRange({ actor: { ...member, userId: ana, isAdmin: true } });
+    });
+
+    expect(result).toEqual({ count: 300 });
+    expect(sent).toHaveLength(1);
+  });
+});
+
+describe("paidRangePreview", () => {
+  const preview = (over: Partial<Parameters<typeof paidRangePreview>[1]> = {}) =>
+    paidRangePreview(db.prisma, {
+      actor: { userId: ana, isAdmin: false },
+      workspaceId,
+      from: "2026-09-01",
+      to: "2026-09-30",
+      timeZone: AR,
+      projectId: null,
+      ...over,
+    });
+
+  it("is empty with nothing in the range", async () => {
+    expect(await preview()).toEqual({ unpaidCount: 0, unpaidMinutes: 0, paidCount: 0 });
+  });
+
+  it("counts what's left to pay and what's already paid, with the time worked", async () => {
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    await block("2026-09-11T12:00:00Z", "2026-09-11T14:00:00Z", { pausedSeconds: 1800 });
+    await block("2026-09-12T12:00:00Z", "2026-09-12T13:00:00Z", { paidAt: earlier });
+
+    expect(await preview()).toEqual({ unpaidCount: 2, unpaidMinutes: 150, paidCount: 1 });
+  });
+
+  it("leaves out open blocks and days outside the range", async () => {
+    await block("2026-09-10T12:00:00Z", null);
+    await block("2026-10-10T12:00:00Z", "2026-10-10T13:00:00Z");
+
+    expect(await preview()).toEqual({ unpaidCount: 0, unpaidMinutes: 0, paidCount: 0 });
+  });
+
+  it("covers the same blocks marking would: a member's own, an admin's whole team", async () => {
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z", { userId: beto });
+
+    expect((await preview()).unpaidCount).toBe(1);
+    expect((await preview({ actor: { userId: ana, isAdmin: true } })).unpaidCount).toBe(2);
+  });
+
+  it("sticks to the chosen project and to this workspace", async () => {
+    const other = await db.prisma.project.create({ data: { workspaceId, name: "B", color: "red" } });
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    await block("2026-09-11T12:00:00Z", "2026-09-11T13:00:00Z", { projectId: other.id });
+    await block("2026-09-12T12:00:00Z", "2026-09-12T13:00:00Z", { projectId: otherProjectId });
+
+    expect((await preview()).unpaidCount).toBe(2);
+    expect((await preview({ projectId })).unpaidCount).toBe(1);
+    expect((await preview({ projectId: otherProjectId })).unpaidCount).toBe(0);
+  });
+
+  it("asks the database once", async () => {
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+
+    expect(await db.statementsOf(() => preview())).toHaveLength(1);
   });
 });

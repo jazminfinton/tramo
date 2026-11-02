@@ -229,6 +229,8 @@
     "total": "Total del período",
     "totalFor": "Total del período en {project}",
     "summary": "{people, plural, one {# persona} other {# personas}} · {projects, plural, one {# proyecto} other {# proyectos}}",
+    "unpaid": "{hours} sin pagar",
+    "allPaid": "Todo pagado",
     "hours": "Horas",
     "filters": {
       "range": "Período",
@@ -447,6 +449,26 @@
     "unmarkDay": "Marcar {day} como no pagado",
     "markEntry": "Marcar {entry} como pagado",
     "unmarkEntry": "Marcar {entry} como no pagado",
+    "range": {
+      "open": "Marcar pagado",
+      "label": "Modo pago",
+      "pickStart": "Modo pago: elegí el primer día.",
+      "pickEnd": "Ahora elegí el último día.",
+      "title": "Marcar horas como pagadas",
+      "team": "Todo el equipo",
+      "mine": "Tus horas",
+      "allProjects": "Todos los proyectos",
+      "loading": "Buscando tramos…",
+      "empty": "No hay tramos terminados en esas fechas.",
+      "nothingUnpaid": "No queda nada sin pagar en esas fechas.",
+      "unpaid": "{count, plural, one {# tramo sin pagar} other {# tramos sin pagar}} · {hours}",
+      "paid": "{count, plural, one {# tramo ya pagado} other {# tramos ya pagados}}",
+      "cancel": "Cancelar",
+      "mark": "Marcar pagado",
+      "unmark": "Quitar la marca",
+      "marked": "{count, plural, =0 {No había nada para marcar} one {# tramo marcado como pagado} other {# tramos marcados como pagados}}",
+      "unmarked": "{count, plural, =0 {No había marcas para quitar} one {Le quitaste la marca a # tramo} other {Le quitaste la marca a # tramos}}"
+    },
     "errors": {
       "notFound": "Ese tramo ya no existe. Recargá la página.",
       "forbidden": "Solo podés marcar tus propias horas.",
@@ -555,6 +577,10 @@
       "metricsDates": {
         "title": "El rango que quieras",
         "body": "Abrí el calendario y marcá el primer y el último día: todo lo de abajo se arma para ese rango. Los botones de al lado son atajos para las últimas semanas."
+      },
+      "metricsPaid": {
+        "title": "Marcá un período de una vez",
+        "body": "Abrí el modo pago, elegí el primer y el último día y confirmá: esas horas quedan marcadas como pagadas, en el proyecto que tengas filtrado. Los admins marcan las de todo el equipo; el resto, las suyas."
       },
       "invite": {
         "title": "Sumá gente",

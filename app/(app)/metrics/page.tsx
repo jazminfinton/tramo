@@ -6,8 +6,9 @@ import { BarTable } from "@/features/metrics/components/bar-table";
 import { MetricsFilters } from "@/features/metrics/components/metrics-filters";
 import { PeriodStack } from "@/features/metrics/components/period-stack";
 import { getMetrics } from "@/features/metrics/queries";
+import { PaidRange } from "@/features/time/components/paid-range";
 import { DEFAULT_TIME_ZONE } from "@/i18n/config";
-import { requireMember } from "@/lib/dal";
+import { getProjectAccess, requireMember } from "@/lib/dal";
 import { formatHours } from "@/lib/duration";
 import { leadFirst, type MetricLead } from "@/lib/metric-views";
 import { zonedDateKey, zonedInstant } from "@/lib/zoned";
@@ -56,6 +57,8 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
   // Today's column gets the one direct label; when today isn't on show, the last one does.
   const todayColumn = byDay ? metrics.range.buckets.indexOf(today) : -1;
   const selectedProject = metrics.projects.find((project) => project.id === metrics.selected);
+  // Admins mark the team's hours; anyone else, their own, if they log any.
+  const canMarkPaid = isAdmin || (await getProjectAccess(user.id, workspace.id)).persona === "tracker";
   const hasData = metrics.total > 0;
 
   // The three metrics a view can lead with, each in its card.
@@ -126,6 +129,19 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
               project={metrics.selected}
               projects={metrics.projects}
               today={today}
+              actions={
+                canMarkPaid && (
+                  <PaidRange
+                    // A new view starts clean, without the last mark's message.
+                    key={`${metrics.selected}:${metrics.range.from}:${metrics.range.to}`}
+                    period={{ from: metrics.range.from, to: metrics.range.to }}
+                    today={today}
+                    projectId={metrics.selected}
+                    projectName={selectedProject?.name ?? null}
+                    team={isAdmin}
+                  />
+                )
+              }
             />
 
             {/* The headline number. Proportional figures, not tabular: it stands alone. */}
@@ -134,8 +150,9 @@ export default async function MetricsPage({ searchParams }: PageProps<"/metrics"
                 {selectedProject ? t("totalFor", { project: selectedProject.name }) : t("total")}
               </h2>
               <p className="poster text-8xl text-accent sm:text-9xl">{formatHours(metrics.total)}</p>
-              <p className="text-xs text-ink-dim">
+              <p className="digits text-xs text-ink-dim">
                 {t("summary", { people: metrics.byPerson.length, projects: metrics.byProject.length })}
+                {hasData && ` · ${metrics.unpaid > 0 ? t("unpaid", { hours: formatHours(metrics.unpaid) }) : t("allPaid")}`}
               </p>
             </section>
 

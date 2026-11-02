@@ -26,6 +26,7 @@ export type TourStepId =
   | "teamWeek"
   | "metrics"
   | "metricsDates"
+  | "metricsPaid"
   | "invite"
   | "board"
   | "settings"
@@ -61,6 +62,7 @@ const OBSERVER = [
   step("teamWeek", "/week", "team-blocks"),
 ];
 const METRICS = [step("metrics", "/metrics", "metrics-filters"), step("metricsDates", "/metrics", "metrics-dates")];
+const METRICS_PAID = step("metricsPaid", "/metrics", "metrics-paid");
 const ADMIN = [step("invite", "/admin/members", "invite-form"), step("board", "/admin/projects", "projects-board")];
 const END = [step("settings", "/settings", "theme-picker"), step("help", null, "help-button", "nav-menu")];
 
@@ -69,12 +71,13 @@ export function tourSteps({ persona, isAdmin }: { persona: ProjectPersona; isAdm
   const admin = isAdmin ? ADMIN : [];
   switch (persona) {
     case "tracker":
-      return [...TRACKER, ...METRICS, ...admin, ...END];
+      return [...TRACKER, ...METRICS, METRICS_PAID, ...admin, ...END];
     case "observer":
-      return [...OBSERVER, ...METRICS, ...admin, ...END];
+      // Someone who only observes has no hours to mark, unless they run the workspace.
+      return [...OBSERVER, ...METRICS, ...(isAdmin ? [METRICS_PAID] : []), ...admin, ...END];
     case "unassigned":
       return isAdmin
-        ? [step("welcomeAdmin", "/"), ...ADMIN, ...METRICS, ...END]
+        ? [step("welcomeAdmin", "/"), ...ADMIN, ...METRICS, METRICS_PAID, ...END]
         : [step("welcomeUnassigned", "/"), ...END];
   }
 }

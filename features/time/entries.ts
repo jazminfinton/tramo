@@ -155,7 +155,7 @@ export async function updateEntry(
         ...what,
         startedAt: input.startedAt,
         endedAt: input.endedAt,
-        ...(sameTimes ? {} : { paidAt: null }),
+        ...(sameTimes ? {} : { paidAt: null, paidById: null }),
       },
     });
     return ok;
