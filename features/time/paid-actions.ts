@@ -3,10 +3,13 @@
 import { refresh } from "next/cache";
 
 import {
+  paidDays,
   paidRangePreview,
+  payablePeople,
   setDayPaid,
   setEntryPaid,
   setRangePaid,
+  type PaidDay,
   type PaidRangePreview,
   type PaidResult,
 } from "@/features/time/paid";
@@ -17,9 +20,9 @@ import { prisma } from "@/lib/db";
 import type { ActionResult } from "@/lib/form";
 
 // Whose hours these are comes from the session, never from the client: only an
-// admin's range reaches somebody else's hours, and that's decided here too. Days
-// are read in the person's own time zone, and the moment of the mark is the
-// server's.
+// admin's range reaches somebody else's hours, and that's decided here too. The
+// person a range asks for only counts for an admin. Days are read in the person's
+// own time zone, and the moment of the mark is the server's.
 
 function settle(result: PaidResult): ActionResult {
   if (!result.ok) return { error: result.reason };
@@ -58,9 +61,10 @@ export async function previewPaidRangeAction(
   from: string,
   to: string,
   projectId: string | null,
+  personId: string | null,
 ): Promise<{ preview: PaidRangePreview } | { error: string }> {
   const { user, workspace, isAdmin } = await requireMember();
-  const parsed = paidRangeSchema.safeParse({ from, to, projectId });
+  const parsed = paidRangeSchema.safeParse({ from, to, projectId, personId });
   if (!parsed.success) return { error: "invalid" };
 
   return {
@@ -73,14 +77,44 @@ export async function previewPaidRangeAction(
   };
 }
 
+/** How much is paid on each day of a range, for the calendar to mark. It writes nothing either. */
+export async function paidDaysAction(
+  from: string,
+  to: string,
+  projectId: string | null,
+  personId: string | null,
+): Promise<{ days: PaidDay[] } | { error: string }> {
+  const { user, workspace, isAdmin } = await requireMember();
+  const parsed = paidRangeSchema.safeParse({ from, to, projectId, personId });
+  if (!parsed.success) return { error: "invalid" };
+
+  return {
+    days: await paidDays(prisma, {
+      actor: { userId: user.id, isAdmin },
+      workspaceId: workspace.id,
+      timeZone: user.timeZone ?? DEFAULT_TIME_ZONE,
+      ...parsed.data,
+    }),
+  };
+}
+
+/** Whose hours an admin can mark. Nobody else chooses, so nobody else gets the names. */
+export async function payablePeopleAction(): Promise<{ people: { id: string; name: string }[] } | { error: string }> {
+  const { workspace, isAdmin } = await requireMember();
+  if (!isAdmin) return { error: "forbidden" };
+
+  return { people: await payablePeople(prisma, workspace.id) };
+}
+
 export async function setPaidRangeAction(
   from: string,
   to: string,
   projectId: string | null,
+  personId: string | null,
   paid: boolean,
 ): Promise<{ count: number } | { error: string }> {
   const { user, workspace, isAdmin } = await requireMember();
-  const parsed = setPaidRangeSchema.safeParse({ from, to, projectId, paid });
+  const parsed = setPaidRangeSchema.safeParse({ from, to, projectId, personId, paid });
   if (!parsed.success) return { error: "invalid" };
 
   const result = await setRangePaid(prisma, {

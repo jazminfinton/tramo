@@ -231,6 +231,7 @@
     "summary": "{people, plural, one {# persona} other {# personas}} · {projects, plural, one {# proyecto} other {# proyectos}}",
     "unpaid": "{hours} sin pagar",
     "allPaid": "Todo pagado",
+    "paidBlocks": "{paid} de {total, plural, one {# tramo pagado} other {# tramos pagados}}",
     "hours": "Horas",
     "filters": {
       "range": "Período",
@@ -247,6 +248,8 @@
     },
     "chart": {
       "total": "Total",
+      "paid": "Pagado",
+      "unpaid": "Sin pagar",
       "other": "Otros",
       "tick": "{hours} h",
       "showTable": "Ver como tabla"
@@ -451,13 +454,24 @@
     "unmarkEntry": "Marcar {entry} como no pagado",
     "range": {
       "open": "Marcar pagado",
-      "label": "Modo pago",
-      "pickStart": "Modo pago: elegí el primer día.",
-      "pickEnd": "Ahora elegí el último día.",
       "title": "Marcar horas como pagadas",
+      "project": "Proyecto",
+      "projectPlaceholder": "Elegí un proyecto",
+      "allProjects": "Todos los proyectos",
+      "archived": "{name} (archivado)",
+      "person": "Persona",
+      "personPlaceholder": "Elegí una persona",
       "team": "Todo el equipo",
       "mine": "Tus horas",
-      "allProjects": "Todos los proyectos",
+      "dates": "Fechas",
+      "pickDates": "Elegir fechas",
+      "pickScopeFirst": "Elegí proyecto y persona primero",
+      "pickProjectFirst": "Elegí el proyecto primero",
+      "pickStart": "Modo pago: elegí el primer día.",
+      "pickEnd": "Ahora elegí el último día.",
+      "legendPaid": "Pagado",
+      "legendUnpaid": "Sin pagar",
+      "day": "{paid} de {total, plural, one {# tramo pagado} other {# tramos pagados}}",
       "loading": "Buscando tramos…",
       "empty": "No hay tramos terminados en esas fechas.",
       "nothingUnpaid": "No queda nada sin pagar en esas fechas.",
@@ -580,7 +594,7 @@
       },
       "metricsPaid": {
         "title": "Marcá un período de una vez",
-        "body": "Abrí el modo pago, elegí el primer y el último día y confirmá: esas horas quedan marcadas como pagadas, en el proyecto que tengas filtrado. Los admins marcan las de todo el equipo; el resto, las suyas."
+        "body": "Abrí el modo pago, elegí el proyecto, la persona y las fechas, y confirmá: esas horas quedan marcadas como pagadas. El calendario te muestra cuánto hay pagado en cada día. Los admins eligen a quién marcarle; el resto marca las suyas."
       },
       "invite": {
         "title": "Sumá gente",

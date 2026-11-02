@@ -68,11 +68,12 @@ describe("paidDaySchema", () => {
 });
 
 describe("paidRangeSchema", () => {
-  const range = { from: "2026-09-01", to: "2026-09-30", projectId: null };
+  const range = { from: "2026-09-01", to: "2026-09-30", projectId: null, personId: null };
 
-  it("takes two days in order, with a project or without one", () => {
+  it("takes two days in order, with a project and a person or without them", () => {
     expect(paidRangeSchema.parse(range)).toEqual(range);
     expect(paidRangeSchema.parse({ ...range, projectId: "p1" }).projectId).toBe("p1");
+    expect(paidRangeSchema.parse({ ...range, personId: "u1" }).personId).toBe("u1");
     expect(paidRangeSchema.parse({ ...range, to: "2026-09-01" }).to).toBe("2026-09-01");
   });
 
@@ -88,7 +89,10 @@ describe("paidRangeSchema", () => {
       { ...range, to: "30/09/2026" },
       { ...range, projectId: "" },
       { ...range, projectId: "p".repeat(65) },
-      { from: range.from, to: range.to },
+      { ...range, personId: "" },
+      { ...range, personId: "u".repeat(65) },
+      { from: range.from, to: range.to, projectId: null },
+      { from: range.from, to: range.to, personId: null },
     ]) {
       expect(paidRangeSchema.safeParse(input).success, JSON.stringify(input)).toBe(false);
     }
@@ -96,7 +100,7 @@ describe("paidRangeSchema", () => {
 });
 
 describe("setPaidRangeSchema", () => {
-  const range = { from: "2026-09-01", to: "2026-09-30", projectId: null };
+  const range = { from: "2026-09-01", to: "2026-09-30", projectId: null, personId: null };
 
   it("takes a range and whether it's paid", () => {
     expect(setPaidRangeSchema.parse({ ...range, paid: false })).toEqual({ ...range, paid: false });

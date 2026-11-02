@@ -2,7 +2,16 @@
 
 import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 
 import { Dropdown } from "@/components/common/dropdown";
 import { useAnchoredPopover } from "@/components/common/use-anchored-popover";
@@ -23,8 +32,8 @@ import {
 type DateRangeFieldProps = {
   /** Accessible name of the control and of its calendar. */
   label: string;
-  /** The range in effect (ISO days, both included): what the calendar opens on. */
-  value: DayRange;
+  /** The range in effect (ISO days, both included): what the calendar opens on. Null before there is one. */
+  value: DayRange | null;
   /** Called once per range, with its days in order, when the second one is picked. */
   onChange: (range: DayRange) => void;
   /**
@@ -41,6 +50,18 @@ type DateRangeFieldProps = {
   icon?: ReactNode;
   /** What the calendar asks for at each step, when it isn't the usual. */
   hints?: { start: string; end: string };
+  /** It can't open yet, because something has to be chosen first: `placeholder` says what. */
+  disabled?: boolean;
+  /** Takes the whole row and the look of a form's fields, for use inside a form. */
+  field?: boolean;
+  /** Drawn under a day's number, in a slot that keeps every day the same size. `onAccent`: the day wears the range's color. */
+  renderDayMark?: (day: string, onAccent: boolean) => ReactNode;
+  /** What that mark says, for screen readers. */
+  describeDay?: (day: string) => string | undefined;
+  /** Told which months are on show, each time they change: the first of them and how many. */
+  onViewChange?: (first: Date, count: number) => void;
+  /** What the marks mean, at the foot of the calendar. */
+  legend?: ReactNode;
   /** Marks the trigger for the guided tour (features/guide/tour.ts). */
   "data-tour"?: string;
   className?: string;
@@ -72,6 +93,12 @@ export function DateRangeField({
   maxDays,
   icon,
   hints,
+  disabled = false,
+  field = false,
+  renderDayMark,
+  describeDay,
+  onViewChange,
+  legend,
   "data-tour": tourKey,
   className = "",
 }: DateRangeFieldProps) {
@@ -105,8 +132,8 @@ export function DateRangeField({
     const count = window.matchMedia(TWO_MONTHS).matches ? 2 : 1;
     setMonths(count);
     setView(openingMonth(value, count, max));
-    // The range's last day, or the last one on offer when it ends past it.
-    setFocused((max !== undefined && value.to > max ? limit : fromIsoDate(value.to)) ?? new Date());
+    // The range's last day, or the last one on offer when it ends past it or there's no range.
+    setFocused((value && (max === undefined || value.to <= max) ? fromIsoDate(value.to) : limit) ?? new Date());
     setAnchor(null);
     setReach(null);
     setOpen(true);
@@ -153,6 +180,12 @@ export function DateRangeField({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
 
+  const announceView = useEffectEvent(() => onViewChange?.(view, months));
+
+  useEffect(() => {
+    if (open) announceView();
+  }, [open, view, months]);
+
   // Focus follows the grid only when the KEYBOARD moved it, so picking a
   // month in the dropdown doesn't yank focus out of the dropdown.
   const followFocus = useRef(false);
@@ -196,22 +229,29 @@ export function DateRangeField({
   const atLatest = latest !== null && view >= latest;
 
   return (
-    <div ref={root} className={`relative inline-flex ${className}`}>
+    <div ref={root} className={`relative ${field ? "flex w-full" : "inline-flex"} ${className}`}>
       <button
         ref={trigger}
         type="button"
         data-tour={tourKey}
-        onClick={() => (open ? close(false) : openCalendar())}
+        onClick={() => {
+          if (disabled) return;
+          if (open) close(false);
+          else openCalendar();
+        }}
+        aria-disabled={disabled || undefined}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? dialogId : undefined}
-        className={`inline-flex h-10 items-center gap-2 rounded-tile px-3 font-display text-sm transition-colors duration-150 ease-signature motion-reduce:transition-none ${
-          picked ? "bg-tile text-ink" : "bg-surface text-ink-muted hover:text-ink aria-expanded:text-ink"
+        className={`items-center gap-2 rounded-tile text-sm transition-colors duration-150 ease-signature motion-reduce:transition-none ${
+          field
+            ? "flex w-full bg-raised py-2.5 pr-2.5 pl-3 text-left hover:bg-tile aria-disabled:cursor-not-allowed aria-disabled:text-ink-dim aria-disabled:hover:bg-raised aria-expanded:bg-tile"
+            : `inline-flex h-10 px-3 font-display ${picked ? "bg-tile text-ink" : "bg-surface text-ink-muted hover:text-ink aria-expanded:text-ink"}`
         }`}
       >
         {icon ?? <CalendarRange className="icon size-4 flex-none" aria-hidden />}
         <span className="sr-only">{`${label}: `}</span>
-        <span className={picked ? "digits" : ""}>{picked ? formatDayRange(value) : placeholder}</span>
+        <span className={picked ? "digits" : ""}>{picked && value ? formatDayRange(value) : placeholder}</span>
       </button>
 
       {open && (
@@ -323,6 +363,7 @@ export function DateRangeField({
                           // range's own ends, and at the edges of the week and the month.
                           const bandStarts = position === "start" || weekday === 0 || day.getDate() === 1;
                           const bandEnds = position === "end" || weekday === 6 || day.getDate() === lastDay;
+                          const description = describeDay?.(isoDay);
 
                           return (
                             <span
@@ -350,7 +391,7 @@ export function DateRangeField({
                                 }}
                                 aria-disabled={pickable ? undefined : true}
                                 aria-current={isToday ? "date" : undefined}
-                                className={`digits w-full rounded-tile py-1.5 text-center text-sm transition-colors duration-150 ease-signature motion-reduce:transition-none ${
+                                className={`digits w-full rounded-tile text-center text-sm transition-colors duration-150 ease-signature motion-reduce:transition-none ${renderDayMark ? "py-1" : "py-1.5"} ${
                                   atEnd
                                     ? "bg-accent text-on-accent"
                                     : pickable
@@ -361,6 +402,12 @@ export function DateRangeField({
                                 } ${isToday && !atEnd ? "outline-1 outline-ink-dim" : ""}`}
                               >
                                 {day.getDate()}
+                                {renderDayMark && (
+                                  <span aria-hidden className="mt-0.5 flex h-1 justify-center">
+                                    {renderDayMark(isoDay, atEnd)}
+                                  </span>
+                                )}
+                                {description && <span className="sr-only">{`: ${description}`}</span>}
                               </button>
                             </span>
                           );
@@ -372,6 +419,8 @@ export function DateRangeField({
               );
             })}
           </div>
+
+          {legend && <div className="mt-3">{legend}</div>}
 
           <div className="hairline-t mt-3 flex items-center justify-between gap-3 pt-3">
             <p aria-live="polite" className="text-xs text-ink-muted">

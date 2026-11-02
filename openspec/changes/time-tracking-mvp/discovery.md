@@ -90,11 +90,17 @@ A minimalist, orderly web app to track time per person, per project, and per tas
   - A person's week shows how many of its hours are unpaid, a block still running included.
 - **Decided (2026-11-02): marking a range as paid.** The owner asked for a pay mode on Metrics' calendar, to mark a period in one go. It's a client's payment that usually covers a period for everyone, so this widens the rule above:
   - Picking a range opens a confirmation that says what the mark would touch. With blocks already paid in the range, it also offers taking the mark off, to undo a mistake.
-  - An admin's range covers the whole team's hours; anyone else's, their own. Someone who only observes doesn't get it. It sticks to the project chosen in the filters.
+  - An admin's range covers the hours they choose (see the next decision); anyone else's, their own. Someone who only observes doesn't get it.
   - A block or a day stays its owner's to mark, admins included, and an owner can take off a mark an admin made.
   - Each mark remembers who made it (`paidById`). It isn't shown yet.
   - Marking is one statement whatever the number of blocks, and its preview one query: no loops. A single `updateMany` is atomic by itself, so it takes no transaction around it, which would only add round trips.
   - Metrics show how many of the period's hours are unpaid, out of the same query as the hours per project.
+- **Decided (2026-11-02): choosing what a range marks, and seeing what's paid.** The owner asked to choose the project and the person before the dates, and to see the volume of paid blocks on the calendar and in Metrics:
+  - Pay mode asks in order: project, person, dates. The calendar doesn't open until the first two are chosen, and picking the range shows what the mark would touch in that same dialog. "Every project" and "the whole team" are still there, but they have to be picked on purpose. A project chosen in Metrics' filters comes already chosen.
+  - Only an admin chooses the person, among whoever has hours in the workspace, so someone who left can still be paid. Anyone else marks their own hours, whoever they ask for: the server decides.
+  - The calendar marks each day with a bar for the chosen project and person, read by length: the colored part is paid, the faint one is what's left. It takes one query per calendar year on show.
+  - Metrics show a progress bar with the period's paid blocks. The bars of the period, of each person and of each project keep their color, solid for what's paid and lighter for what's left. The numbers are also in the detail and in the table. Tasks stay as they were.
+  - None of this takes a new column or a migration, and Metrics' part comes out of the queries it already runs.
 - **Decided (v1): forgotten-timer alert.** When a timer has run for 8 hours, the app warns the user and asks them to confirm or fix it.
 
 ## Views and metrics (v1)

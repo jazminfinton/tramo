@@ -47,12 +47,13 @@ const dayRange = z.object({
   from: isoDay,
   to: isoDay,
   projectId: z.string().min(1).max(64).nullable(),
+  personId: z.string().min(1).max(64).nullable(),
 });
 
 const makesARange = ({ from, to }: { from: string; to: string }) =>
   from <= to && isoDaysBetween(from, to) < MAX_RANGE_DAYS;
 
-/** The days a range of hours to mark covers, in order and a year at most, in one project or all of them. */
+/** The hours a range to mark covers: its days, in order and a year at most, in one project or all, of one person or the whole team. */
 export const paidRangeSchema = dayRange.refine(makesARange);
 
 /** What marking a range as paid, or taking the mark off, needs. */

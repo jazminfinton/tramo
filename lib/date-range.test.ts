@@ -95,6 +95,11 @@ describe("openingMonth", () => {
     expect(opens("2026-09-28", "2026-10-04", 1, "2026-09-30")).toBe("2026-09-01");
   });
 
+  it("opens on the last months on offer when there's no range yet", () => {
+    expect(toIsoDate(openingMonth(null, 2, "2026-11-02"))).toBe("2026-10-01");
+    expect(toIsoDate(openingMonth(null, 1, "2026-11-02"))).toBe("2026-11-01");
+  });
+
   it("leaves a past range where it is, with room after it", () => {
     expect(opens("2026-03-01", "2026-03-31", 2, "2026-10-07")).toBe("2026-03-01");
   });

@@ -59,15 +59,24 @@ const scope = () => ({ projectIds: [projectA, projectB], ...range, now });
 describe("metrics aggregation (real Postgres)", () => {
   it("adds minutes per person, only for visible projects in range, running blocks up to now", async () => {
     expect(await minutesByPerson(db.prisma, scope())).toEqual([
-      { id: ana, name: "Ana", minutes: 180 },
-      { id: beto, name: "Beto", minutes: 90 },
+      { id: ana, name: "Ana", minutes: 180, unpaid: 180 },
+      { id: beto, name: "Beto", minutes: 90, unpaid: 90 },
+    ]);
+  });
+
+  it("says how much of each person's time is left to pay", async () => {
+    await db.prisma.timeEntry.updateMany({ where: { description: "Landing" }, data: { paidAt: now } });
+
+    expect(await minutesByPerson(db.prisma, scope())).toEqual([
+      { id: ana, name: "Ana", minutes: 180, unpaid: 0 },
+      { id: beto, name: "Beto", minutes: 90, unpaid: 90 },
     ]);
   });
 
   it("adds minutes per project", async () => {
     expect(await minutesByProject(db.prisma, scope())).toEqual([
-      { projectId: projectA, minutes: 240, unpaid: 240 },
-      { projectId: projectB, minutes: 30, unpaid: 30 },
+      { projectId: projectA, minutes: 240, unpaid: 240, blocks: 3, paidBlocks: 0 },
+      { projectId: projectB, minutes: 30, unpaid: 30, blocks: 1, paidBlocks: 0 },
     ]);
   });
 
@@ -77,8 +86,8 @@ describe("metrics aggregation (real Postgres)", () => {
     await db.prisma.timeEntry.updateMany({ where: { description: "Deploy" }, data: { paidAt: now } });
 
     expect(await minutesByProject(db.prisma, scope())).toEqual([
-      { projectId: projectA, minutes: 240, unpaid: 60 },
-      { projectId: projectB, minutes: 30, unpaid: 0 },
+      { projectId: projectA, minutes: 240, unpaid: 60, blocks: 3, paidBlocks: 2 },
+      { projectId: projectB, minutes: 30, unpaid: 0, blocks: 1, paidBlocks: 1 },
     ]);
   });
 
@@ -113,18 +122,28 @@ describe("metrics aggregation (real Postgres)", () => {
 
   it("buckets by local week (Monday) per project", async () => {
     expect(await minutesByPeriod(db.prisma, { ...scope(), timeZone: AR, unit: "week" })).toEqual([
-      { bucket: "2026-09-14", projectId: projectA, minutes: 120 },
-      { bucket: "2026-09-21", projectId: projectA, minutes: 120 },
-      { bucket: "2026-09-21", projectId: projectB, minutes: 30 },
+      { bucket: "2026-09-14", projectId: projectA, minutes: 120, paid: 0 },
+      { bucket: "2026-09-21", projectId: projectA, minutes: 120, paid: 0 },
+      { bucket: "2026-09-21", projectId: projectB, minutes: 30, paid: 0 },
+    ]);
+  });
+
+  it("says how much of each column is paid", async () => {
+    await db.prisma.timeEntry.updateMany({ where: { description: "Landing" }, data: { paidAt: now } });
+
+    expect(await minutesByPeriod(db.prisma, { ...scope(), timeZone: AR, unit: "week" })).toEqual([
+      { bucket: "2026-09-14", projectId: projectA, minutes: 120, paid: 120 },
+      { bucket: "2026-09-21", projectId: projectA, minutes: 120, paid: 60 },
+      { bucket: "2026-09-21", projectId: projectB, minutes: 30, paid: 0 },
     ]);
   });
 
   it("buckets by local day per project", async () => {
     expect(await minutesByPeriod(db.prisma, { ...scope(), timeZone: AR, unit: "day" })).toEqual([
-      { bucket: "2026-09-15", projectId: projectA, minutes: 120 },
-      { bucket: "2026-09-22", projectId: projectA, minutes: 60 },
-      { bucket: "2026-09-22", projectId: projectB, minutes: 30 },
-      { bucket: "2026-09-24", projectId: projectA, minutes: 60 },
+      { bucket: "2026-09-15", projectId: projectA, minutes: 120, paid: 0 },
+      { bucket: "2026-09-22", projectId: projectA, minutes: 60, paid: 0 },
+      { bucket: "2026-09-22", projectId: projectB, minutes: 30, paid: 0 },
+      { bucket: "2026-09-24", projectId: projectA, minutes: 60, paid: 0 },
     ]);
   });
 
@@ -155,10 +174,12 @@ describe("metrics aggregation (real Postgres)", () => {
     });
 
     expect(await minutesByPerson(db.prisma, scope())).toEqual([
-      { id: ana, name: "Ana", minutes: 90 },
-      { id: beto, name: "Beto", minutes: 15 },
+      { id: ana, name: "Ana", minutes: 90, unpaid: 90 },
+      { id: beto, name: "Beto", minutes: 15, unpaid: 15 },
     ]);
-    expect(await minutesByProject(db.prisma, scope())).toEqual([{ projectId: projectA, minutes: 105, unpaid: 105 }]);
+    expect(await minutesByProject(db.prisma, scope())).toEqual([
+      { projectId: projectA, minutes: 105, unpaid: 105, blocks: 2, paidBlocks: 0 },
+    ]);
     expect(await topTasks(db.prisma, scope(), 5)).toEqual([{ name: "Landing", projectId: projectA, minutes: 90 }]);
   });
 

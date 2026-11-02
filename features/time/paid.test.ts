@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { paidRangePreview, setDayPaid, setEntryPaid, setRangePaid } from "@/features/time/paid";
+import { paidDays, paidRangePreview, payablePeople, setDayPaid, setEntryPaid, setRangePaid } from "@/features/time/paid";
 import { createTestDb, createUser, type TestDb } from "@/lib/testing/db";
 
 const AR = "America/Argentina/Buenos_Aires"; // UTC-3
@@ -204,7 +204,6 @@ describe("setDayPaid", () => {
 
 describe("setRangePaid", () => {
   const SEPTEMBER = { from: "2026-09-01", to: "2026-09-30" };
-  const member = { userId: ana, isAdmin: false };
 
   const markRange = (
     over: Partial<Parameters<typeof setRangePaid>[1]> = {},
@@ -215,6 +214,7 @@ describe("setRangePaid", () => {
       ...SEPTEMBER,
       timeZone: AR,
       projectId: null,
+      personId: null,
       paid: true,
       now,
       ...over,
@@ -261,6 +261,26 @@ describe("setRangePaid", () => {
 
     expect(await stored(mine.id)).toMatchObject({ paidAt: now, paidById: ana });
     expect(await stored(theirs.id)).toMatchObject({ paidAt: now, paidById: ana });
+  });
+
+  it("lets an admin mark one person's hours", async () => {
+    const mine = await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    const theirs = await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z", { userId: beto });
+
+    expect(await markRange({ actor: { userId: ana, isAdmin: true }, personId: beto })).toEqual({ count: 1 });
+
+    expect((await stored(mine.id)).paidAt).toBeNull();
+    expect(await stored(theirs.id)).toMatchObject({ paidAt: now, paidById: ana });
+  });
+
+  it("keeps anyone else to their own hours, whoever they ask for", async () => {
+    const mine = await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    const theirs = await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z", { userId: beto });
+
+    expect(await markRange({ personId: beto })).toEqual({ count: 1 });
+
+    expect((await stored(mine.id)).paidAt).toEqual(now);
+    expect((await stored(theirs.id)).paidAt).toBeNull();
   });
 
   it("sticks to the chosen project", async () => {
@@ -330,7 +350,7 @@ describe("setRangePaid", () => {
 
     let result: unknown;
     const sent = await db.statementsOf(async () => {
-      result = await markRange({ actor: { ...member, userId: ana, isAdmin: true } });
+      result = await markRange({ actor: { userId: ana, isAdmin: true } });
     });
 
     expect(result).toEqual({ count: 300 });
@@ -347,6 +367,7 @@ describe("paidRangePreview", () => {
       to: "2026-09-30",
       timeZone: AR,
       projectId: null,
+      personId: null,
       ...over,
     });
 
@@ -377,6 +398,18 @@ describe("paidRangePreview", () => {
     expect((await preview({ actor: { userId: ana, isAdmin: true } })).unpaidCount).toBe(2);
   });
 
+  it("covers one person for an admin, and only one's own for anyone else", async () => {
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    await block("2026-09-10T12:00:00Z", "2026-09-10T14:00:00Z", { userId: beto });
+
+    expect(await preview({ actor: { userId: ana, isAdmin: true }, personId: beto })).toEqual({
+      unpaidCount: 1,
+      unpaidMinutes: 120,
+      paidCount: 0,
+    });
+    expect(await preview({ personId: beto })).toEqual({ unpaidCount: 1, unpaidMinutes: 60, paidCount: 0 });
+  });
+
   it("sticks to the chosen project and to this workspace", async () => {
     const other = await db.prisma.project.create({ data: { workspaceId, name: "B", color: "red" } });
     await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
@@ -392,5 +425,100 @@ describe("paidRangePreview", () => {
     await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
 
     expect(await db.statementsOf(() => preview())).toHaveLength(1);
+  });
+});
+
+describe("paidDays", () => {
+  const days = (over: Partial<Parameters<typeof paidDays>[1]> = {}) =>
+    paidDays(db.prisma, {
+      actor: { userId: ana, isAdmin: true },
+      workspaceId,
+      from: "2026-09-01",
+      to: "2026-09-30",
+      timeZone: AR,
+      projectId: null,
+      personId: null,
+      ...over,
+    });
+
+  it("counts each day's paid and unpaid blocks, in order", async () => {
+    await block("2026-09-12T12:00:00Z", "2026-09-12T13:00:00Z");
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    await block("2026-09-10T14:00:00Z", "2026-09-10T15:00:00Z", { paidAt: earlier });
+
+    expect(await days()).toEqual([
+      { day: "2026-09-10", paid: 1, unpaid: 1 },
+      { day: "2026-09-12", paid: 0, unpaid: 1 },
+    ]);
+  });
+
+  it("reads the day on the person's clock", async () => {
+    // 01:00 UTC on the 11th is still the 10th in Buenos Aires.
+    await block("2026-09-11T01:00:00Z", "2026-09-11T02:00:00Z");
+
+    expect(await days()).toEqual([{ day: "2026-09-10", paid: 0, unpaid: 1 }]);
+  });
+
+  it("leaves out open blocks and days outside the range", async () => {
+    await block("2026-09-10T12:00:00Z", null);
+    await block("2026-10-10T12:00:00Z", "2026-10-10T13:00:00Z");
+
+    expect(await days()).toEqual([]);
+  });
+
+  it("covers what marking would: one person for an admin, one's own for anyone else", async () => {
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    await block("2026-09-11T12:00:00Z", "2026-09-11T13:00:00Z", { userId: beto });
+
+    expect((await days()).map((row) => row.day)).toEqual(["2026-09-10", "2026-09-11"]);
+    expect((await days({ personId: beto })).map((row) => row.day)).toEqual(["2026-09-11"]);
+    expect(
+      (await days({ actor: { userId: ana, isAdmin: false }, personId: beto })).map((row) => row.day),
+    ).toEqual(["2026-09-10"]);
+  });
+
+  it("sticks to the chosen project and to this workspace", async () => {
+    const other = await db.prisma.project.create({ data: { workspaceId, name: "B", color: "red" } });
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    await block("2026-09-11T12:00:00Z", "2026-09-11T13:00:00Z", { projectId: other.id });
+    await block("2026-09-12T12:00:00Z", "2026-09-12T13:00:00Z", { projectId: otherProjectId });
+
+    expect((await days()).map((row) => row.day)).toEqual(["2026-09-10", "2026-09-11"]);
+    expect((await days({ projectId: other.id })).map((row) => row.day)).toEqual(["2026-09-11"]);
+  });
+
+  it("asks the database once, however many days the range holds", async () => {
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    await block("2026-09-20T12:00:00Z", "2026-09-20T13:00:00Z");
+
+    expect(await db.statementsOf(() => days())).toHaveLength(1);
+  });
+});
+
+describe("payablePeople", () => {
+  it("lists who has hours in the workspace, by name", async () => {
+    await createUser(db, "carla@test.dev"); // no hours
+    const dani = await createUser(db, "dani@test.dev");
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z", { userId: dani.id, projectId: otherProjectId });
+    await block("2026-09-11T12:00:00Z", "2026-09-11T13:00:00Z", { userId: beto });
+    await block("2026-09-12T12:00:00Z", "2026-09-12T13:00:00Z");
+
+    expect(await payablePeople(db.prisma, workspaceId)).toEqual([
+      { id: ana, name: "ana" },
+      { id: beto, name: "beto" },
+    ]);
+  });
+
+  it("lists someone once, however many hours they have", async () => {
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+    await block("2026-09-11T12:00:00Z", "2026-09-11T13:00:00Z");
+
+    expect(await payablePeople(db.prisma, workspaceId)).toEqual([{ id: ana, name: "ana" }]);
+  });
+
+  it("asks the database once", async () => {
+    await block("2026-09-10T12:00:00Z", "2026-09-10T13:00:00Z");
+
+    expect(await db.statementsOf(() => payablePeople(db.prisma, workspaceId))).toHaveLength(1);
   });
 });

@@ -54,10 +54,16 @@ export function formatDayRange({ from, to }: DayRange): string {
  * The first of the `count` months a calendar opens on to show a range: the
  * months the range is in, with its last day always on show. With a last day
  * that can be picked (`max`), it doesn't open on a month past it: next to the
- * current month goes the one before, not one nobody can pick from.
+ * current month goes the one before, not one nobody can pick from. With no
+ * range yet, it opens on the last months on offer.
  */
-export function openingMonth(range: DayRange, count: number, max?: string): Date {
+export function openingMonth(range: DayRange | null, count: number, max?: string): Date {
   const limit = max === undefined ? null : fromIsoDate(max);
+  if (!range) {
+    const end = limit ?? new Date();
+    return addMonths(monthsShowing(end, 1, end), 1 - count);
+  }
+
   const last = (max !== undefined && range.to > max ? limit : fromIsoDate(range.to)) ?? new Date();
   const opening = monthsShowing(fromIsoDate(range.from) ?? last, count, last);
   if (!limit) return opening;

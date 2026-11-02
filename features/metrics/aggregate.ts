@@ -23,6 +23,12 @@ const worked = (now: Date) => Prisma.sql`GREATEST(0,
 
 const minutes = (now: Date) => Prisma.sql`SUM(${worked(now)})::float8`;
 
+const paidMinutes = (now: Date) =>
+  Prisma.sql`COALESCE(SUM(${worked(now)}) FILTER (WHERE e."paidAt" IS NOT NULL), 0)::float8`;
+
+const unpaidMinutes = (now: Date) =>
+  Prisma.sql`COALESCE(SUM(${worked(now)}) FILTER (WHERE e."paidAt" IS NULL), 0)::float8`;
+
 const where = (scope: MetricsScope) => Prisma.sql`
   e."projectId" = ANY(${scope.projectIds})
   AND e."startedAt" >= ${scope.start}
@@ -31,25 +37,34 @@ const where = (scope: MetricsScope) => Prisma.sql`
 const round = <T extends { minutes: number }>(rows: T[]) =>
   rows.map((row) => ({ ...row, minutes: Math.round(row.minutes) }));
 
+/** Minutes per person, and how many of them nobody has marked as paid, a running block included. */
 export async function minutesByPerson(db: PrismaClient, scope: MetricsScope) {
   if (scope.projectIds.length === 0) return [];
-  return round(
-    await db.$queryRaw<{ id: string; name: string; minutes: number }[]>`
-      SELECT e."userId" AS id, u.name AS name, ${minutes(scope.now)} AS minutes
-      FROM "TimeEntry" e JOIN "User" u ON u.id = e."userId"
-      WHERE ${where(scope)}
-      GROUP BY e."userId", u.name
-      ORDER BY minutes DESC, u.name ASC`,
-  );
+  const rows = await db.$queryRaw<{ id: string; name: string; minutes: number; unpaid: number }[]>`
+    SELECT e."userId" AS id, u.name AS name,
+           ${minutes(scope.now)} AS minutes,
+           ${unpaidMinutes(scope.now)} AS unpaid
+    FROM "TimeEntry" e JOIN "User" u ON u.id = e."userId"
+    WHERE ${where(scope)}
+    GROUP BY e."userId", u.name
+    ORDER BY minutes DESC, u.name ASC`;
+  return round(rows).map((row) => ({ ...row, unpaid: Math.round(row.unpaid) }));
 }
 
-/** Minutes per project, and how many of them nobody has marked as paid, a running block included. */
+/**
+ * Minutes per project, how many of them nobody has marked as paid, a running
+ * block included, and its blocks: how many there are and how many are paid.
+ */
 export async function minutesByProject(db: PrismaClient, scope: MetricsScope) {
   if (scope.projectIds.length === 0) return [];
-  const rows = await db.$queryRaw<{ projectId: string; minutes: number; unpaid: number }[]>`
+  const rows = await db.$queryRaw<
+    { projectId: string; minutes: number; unpaid: number; blocks: number; paidBlocks: number }[]
+  >`
     SELECT e."projectId" AS "projectId",
            ${minutes(scope.now)} AS minutes,
-           COALESCE(SUM(${worked(scope.now)}) FILTER (WHERE e."paidAt" IS NULL), 0)::float8 AS unpaid
+           ${unpaidMinutes(scope.now)} AS unpaid,
+           COUNT(*)::int AS blocks,
+           COUNT(*) FILTER (WHERE e."paidAt" IS NOT NULL)::int AS "paidBlocks"
     FROM "TimeEntry" e
     WHERE ${where(scope)}
     GROUP BY e."projectId"
@@ -77,22 +92,22 @@ export async function topTasks(db: PrismaClient, scope: MetricsScope, limit: num
 }
 
 /**
- * Minutes per project per local day or week, each bucket named by its first
- * day (ISO date): a week is its Monday.
+ * Minutes per project per local day or week, and how many of them are marked
+ * as paid. Each bucket is named by its first day (ISO date): a week is its Monday.
  */
 export async function minutesByPeriod(
   db: PrismaClient,
   scope: MetricsScope & { timeZone: string; unit: "day" | "week" },
 ) {
   if (scope.projectIds.length === 0) return [];
-  return round(
-    await db.$queryRaw<{ bucket: string; projectId: string; minutes: number }[]>`
-      SELECT to_char(date_trunc(${scope.unit}, e."startedAt" AT TIME ZONE ${scope.timeZone}), 'YYYY-MM-DD') AS bucket,
-             e."projectId" AS "projectId",
-             ${minutes(scope.now)} AS minutes
-      FROM "TimeEntry" e
-      WHERE ${where(scope)}
-      GROUP BY 1, 2
-      ORDER BY 1 ASC, minutes DESC`,
-  );
+  const rows = await db.$queryRaw<{ bucket: string; projectId: string; minutes: number; paid: number }[]>`
+    SELECT to_char(date_trunc(${scope.unit}, e."startedAt" AT TIME ZONE ${scope.timeZone}), 'YYYY-MM-DD') AS bucket,
+           e."projectId" AS "projectId",
+           ${minutes(scope.now)} AS minutes,
+           ${paidMinutes(scope.now)} AS paid
+    FROM "TimeEntry" e
+    WHERE ${where(scope)}
+    GROUP BY 1, 2
+    ORDER BY 1 ASC, minutes DESC`;
+  return round(rows).map((row) => ({ ...row, paid: Math.round(row.paid) }));
 }

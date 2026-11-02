@@ -2,12 +2,10 @@ import "server-only";
 
 import { minutesByPeriod, minutesByPerson, minutesByProject, topTasks } from "@/features/metrics/aggregate";
 import { resolveRange } from "@/features/metrics/range";
+import { periodSeries } from "@/features/metrics/series";
 import { visibleProjectsWhere } from "@/lib/access/permissions";
 import { prisma } from "@/lib/db";
 import { metricDefaults } from "@/lib/metric-views";
-
-/** Past this many projects, the rest fold into "Other": the palette has eight slots, never a ninth. */
-const MAX_SERIES = 7;
 
 /**
  * Transparency per project: admins see every project of the workspace;
@@ -60,32 +58,8 @@ export async function getMetrics(input: {
 
   const byProject = byProjectRows.flatMap((row) => {
     const project = projectById.get(row.projectId);
-    return project
-      ? [{ id: project.id, name: project.name, color: project.color, minutes: row.minutes, unpaid: row.unpaid }]
-      : [];
+    return project ? [{ ...row, id: project.id, name: project.name, color: project.color }] : [];
   });
-
-  // Series per day or week: the top projects keep their own color, the tail folds into one.
-  const main = byProject.slice(0, MAX_SERIES);
-  const mainIds = new Set(main.map((project) => project.id));
-  const bucketIndex = new Map(range.buckets.map((bucket, index) => [bucket, index]));
-  type Series = { key: string; name: string | null; color: string | null; values: number[] };
-  const series: Series[] = main.map((project) => ({
-    key: project.id,
-    name: project.name,
-    color: project.color,
-    values: range.buckets.map(() => 0),
-  }));
-  // name null = "Other", labeled by the client in the viewer's language.
-  const other: Series = { key: "other", name: null, color: null, values: range.buckets.map(() => 0) };
-
-  for (const row of periodRows) {
-    const index = bucketIndex.get(row.bucket);
-    if (index === undefined) continue;
-    const target = mainIds.has(row.projectId) ? series.find((item) => item.key === row.projectId) : other;
-    if (target) target.values[index] = (target.values[index] ?? 0) + row.minutes;
-  }
-  if (other.values.some((value) => value > 0)) series.push(other);
 
   return {
     range,
@@ -101,13 +75,15 @@ export async function getMetrics(input: {
     selected,
     total: byProject.reduce((sum, project) => sum + project.minutes, 0),
     unpaid: byProject.reduce((sum, project) => sum + project.unpaid, 0),
+    blocks: byProject.reduce((sum, project) => sum + project.blocks, 0),
+    paidBlocks: byProject.reduce((sum, project) => sum + project.paidBlocks, 0),
     byPerson,
     byProject,
     tasks: tasks.flatMap((task) => {
       const project = projectById.get(task.projectId);
       return project ? [{ ...task, projectName: project.name, projectColor: project.color }] : [];
     }),
-    series,
+    series: periodSeries(periodRows, byProject, range.buckets),
   };
 }
 
