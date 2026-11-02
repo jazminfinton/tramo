@@ -16,6 +16,10 @@ const MIGRATIONS_DIR = path.resolve(process.cwd(), "prisma", "migrations");
  */
 export async function createTestDb() {
   const pglite = new PGlite();
+  // Prisma writes dates as UTC without an offset, which holds on a UTC session,
+  // like Neon's. PGlite starts on the machine's zone, and then SQL time-zone math
+  // would be off by that zone, here and not in production.
+  await pglite.exec("SET TIME ZONE 'UTC'");
 
   const migrations = readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
