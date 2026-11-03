@@ -101,6 +101,12 @@ A minimalist, orderly web app to track time per person, per project, and per tas
   - The calendar marks each day with a bar for the chosen project and person, read by length: the colored part is paid, the faint one is what's left. It takes one query per calendar year on show.
   - Metrics show a progress bar with the period's paid blocks. The bars of the period, of each person and of each project keep their color, solid for what's paid and lighter for what's left. The numbers are also in the detail and in the table. Tasks stay as they were.
   - None of this takes a new column or a migration, and Metrics' part comes out of the queries it already runs.
+- **Decided (2026-11-02): the history of blocks.** The owner asked for a tab next to the latest blocks, filtered by person, dates, individual task name or team task:
+  - It shows every finished block in the projects the viewer can see, whoever logged it: the same transparency per project as Metrics and the team's week. Someone who only observes gets it without tabs.
+  - Filters are applied in the database and combined, and there's no apply button: a choice applies at once, and text after a pause in the typing. They live in the URL, like Metrics'. The only button clears them.
+  - The text looks in what's written by hand, ignoring case and accents, not in team task names, which have their own filter. Unlike Fragua, the folding happens as the text is read, not in a stored key: no migration, nothing to keep in sync on every write, and each query is already narrowed by project.
+  - Paging goes by cursor, as in Fragua: Previous and Next, with no page numbers. The total of what's filtered comes out of the same statement that picks the page.
+  - One's own blocks keep their actions; anyone else's are read-only, an admin's view included, as in the team's week.
 - **Decided (v1): forgotten-timer alert.** When a timer has run for 8 hours, the app warns the user and asks them to confirm or fix it.
 
 ## Views and metrics (v1)

@@ -3,20 +3,25 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { RefreshOnFocus } from "@/components/common/refresh-on-focus";
+import { EntryHistory } from "@/features/time/components/entry-history";
 import { ObserverHome, TeamWeekSummary } from "@/features/time/components/observer-home";
 import { RecentEntries } from "@/features/time/components/recent-entries";
 import { TimerBar } from "@/features/time/components/timer-bar";
-import { getTeamWeekData, getTimerPageData } from "@/features/time/queries";
+import { getHistoryData, getTeamWeekData, getTimerPageData } from "@/features/time/queries";
 import { DEFAULT_TIME_ZONE } from "@/i18n/config";
 import { getProjectAccess, requireMember } from "@/lib/dal";
+import { param } from "@/lib/pagination";
+import { zonedDateKey } from "@/lib/zoned";
 
 /**
- * Home: the timer and the latest blocks. Someone who only observes gets what
- * they follow and this week's hours per person instead, since they never log
- * time; someone with no project yet gets told what to do next.
+ * Home: the timer, the latest blocks and, in a tab next to them, the history.
+ * Someone who only observes gets what they follow and this week's hours per
+ * person instead, since they never log time, and the history without tabs;
+ * someone with no project yet gets told what to do next.
  */
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: PageProps<"/">) {
   const { user, workspace, isAdmin } = await requireMember();
+  const params = await searchParams;
   const timeZone = user.timeZone ?? DEFAULT_TIME_ZONE;
   const [t, data, access] = await Promise.all([
     getTranslations("timer"),
@@ -29,6 +34,21 @@ export default async function HomePage() {
   const teamWeek = observing
     ? await getTeamWeekData({ userId: user.id, workspaceId: workspace.id, isAdmin, weekParam: undefined, timeZone })
     : null;
+  // One's own latest blocks: only for people who log time, or did.
+  const showRecent = canTrack || data.recent.length > 0;
+  // Read only when it's on screen, so the tab costs nothing to whoever stays on the other one.
+  const history =
+    !showRecent || param(params, "tab") === "history"
+      ? await getHistoryData({
+          userId: user.id,
+          workspaceId: workspace.id,
+          isAdmin,
+          timeZone,
+          params,
+          tasks: data.tasks,
+        })
+      : null;
+  const shared = { projects: data.projects, tasks: data.tasks, suggestions: data.suggestions, timeZone };
 
   return (
     <>
@@ -66,15 +86,16 @@ export default async function HomePage() {
 
         {teamWeek && <TeamWeekSummary data={teamWeek} />}
 
-        {/* A history of one's own blocks: only for people who log time, or did. */}
-        {(canTrack || data.recent.length > 0) && (
-          <RecentEntries
-            entries={data.recent}
-            projects={data.projects}
-            tasks={data.tasks}
-            suggestions={data.suggestions}
-            timeZone={timeZone}
+        {history ? (
+          <EntryHistory
+            history={history}
+            viewerId={user.id}
+            tabs={showRecent}
+            today={zonedDateKey(new Date(), timeZone)}
+            {...shared}
           />
+        ) : (
+          showRecent && <RecentEntries entries={data.recent} {...shared} />
         )}
       </main>
     </>

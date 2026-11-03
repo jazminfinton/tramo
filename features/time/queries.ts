@@ -1,5 +1,6 @@
 import "server-only";
 
+import { loadHistory } from "@/features/time/history";
 import { unpaidMinutes } from "@/features/time/paid-status";
 import { listTasks } from "@/features/time/tasks";
 import { listTeamEntries } from "@/features/time/team";
@@ -7,6 +8,7 @@ import { recentDescriptions } from "@/features/time/timer";
 import { timerState } from "@/features/time/timer-state";
 import { bucketWeek, resolveWeek } from "@/features/time/week";
 import { prisma } from "@/lib/db";
+import type { SearchParams } from "@/lib/pagination";
 import { weekRange, zonedDateKey } from "@/lib/zoned";
 
 const ENTRY_SELECT = {
@@ -155,3 +157,15 @@ export async function getTeamWeekData(input: {
 }
 
 export type TeamWeekData = Awaited<ReturnType<typeof getTeamWeekData>>;
+
+/** The history tab, from what's in the URL; null if this person sees no project. */
+export function getHistoryData(input: {
+  userId: string;
+  workspaceId: string;
+  isAdmin: boolean;
+  timeZone: string;
+  params: SearchParams;
+  tasks: TimerPageData["tasks"];
+}) {
+  return loadHistory(prisma, input);
+}
