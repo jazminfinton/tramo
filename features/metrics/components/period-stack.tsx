@@ -2,14 +2,13 @@
 
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useRef, useState, type KeyboardEvent } from "react";
+import { Fragment, useRef, useState, type KeyboardEvent } from "react";
 
 import { namedEvery } from "@/features/metrics/axis";
+import type { PeriodSeries } from "@/features/metrics/series";
+import { GAP, paidPieces, type Piece } from "@/features/metrics/stack";
 import { formatHours } from "@/lib/duration";
 import { rovingTarget } from "@/lib/roving-focus";
-
-/** A null name is the "Other" series that folds the tail of projects. */
-export type PeriodSeries = { key: string; name: string | null; color: string | null; values: number[] };
 
 type PeriodStackProps = {
   /** One per column, already formatted on the server ("21 sept", "lun 21"). */
@@ -26,8 +25,10 @@ type PeriodStackProps = {
 const WIDTH = 640;
 const HEIGHT = 240;
 const PAD = { top: 20, right: 12, bottom: 28, left: 44 };
-const GAP = 2; // the surface gap between stacked segments
 const RADIUS = 4;
+// What's still to pay wears its project's color, lighter. Same hue, so a bar is
+// still one project, and the table has the numbers for anyone who can't tell.
+const LIGHT = 0.4;
 
 const fill = (color: string | null) => (color ? `var(--color-project-${color})` : "var(--color-ink-dim)");
 
@@ -51,6 +52,9 @@ function topRoundedRect(x: number, y: number, width: number, height: number, rad
  * table below (tooltips enhance, never gate). The legend is always shown: two
  * or more series never rely on color alone.
  *
+ * Each segment keeps its project's color and splits by what's paid: solid at
+ * the bottom, lighter on top with what's left.
+ *
  * It takes anything from a week of days to a year of weeks. With many columns
  * the axis names only some, evenly. And the chart is one tab stop however
  * many it has: the side arrows, Home and End move from column to column.
@@ -73,6 +77,7 @@ export function PeriodStack({ labels: columnLabels, series: rawSeries, caption, 
   const columns = useRef<(SVGGElement | null)[]>([]);
 
   const totals = columnLabels.map((_, index) => series.reduce((sum, item) => sum + (item.values[index] ?? 0), 0));
+  const paidTotals = columnLabels.map((_, index) => series.reduce((sum, item) => sum + (item.paid[index] ?? 0), 0));
   const maxHours = niceMaxHours(Math.max(...totals, 0));
   const plotWidth = WIDTH - PAD.left - PAD.right;
   const plotHeight = HEIGHT - PAD.top - PAD.bottom;
@@ -98,14 +103,26 @@ export function PeriodStack({ labels: columnLabels, series: rawSeries, caption, 
   return (
     <div className="flex flex-col gap-4">
       {/* Legend first: identity never depends on matching colors by eye. */}
-      <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-ink-muted">
-        {series.map((item) => (
-          <li key={item.key} className="flex items-center gap-1.5">
-            <span aria-hidden className="size-2.5 rounded-[3px]" style={{ backgroundColor: fill(item.color) }} />
-            {item.name}
+      <div className="flex flex-wrap justify-between gap-x-6 gap-y-1.5 text-xs text-ink-muted">
+        <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
+          {series.map((item) => (
+            <li key={item.key} className="flex items-center gap-1.5">
+              <span aria-hidden className="size-2.5 rounded-[3px]" style={{ backgroundColor: fill(item.color) }} />
+              {item.name}
+            </li>
+          ))}
+        </ul>
+        <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
+          <li className="flex items-center gap-1.5">
+            <span aria-hidden className="size-2.5 rounded-[3px] bg-ink-muted" />
+            {t("paid")}
           </li>
-        ))}
-      </ul>
+          <li className="flex items-center gap-1.5">
+            <span aria-hidden className="size-2.5 rounded-[3px] bg-ink-muted" style={{ opacity: LIGHT }} />
+            {t("unpaid")}
+          </li>
+        </ul>
+      </div>
 
       <div className="relative">
         <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="h-auto w-full" role="group" aria-label={labels.caption}>
@@ -151,7 +168,7 @@ export function PeriodStack({ labels: columnLabels, series: rawSeries, caption, 
                 }}
                 tabIndex={index === tabStop ? 0 : -1}
                 role="img"
-                aria-label={`${columnLabel}: ${formatHours(totals[index] ?? 0)}`}
+                aria-label={`${columnLabel}: ${formatHours(totals[index] ?? 0)} · ${t("paid")} ${formatHours(paidTotals[index] ?? 0)}`}
                 onMouseEnter={() => setActive(index)}
                 onMouseLeave={() => setActive(null)}
                 onFocus={() => {
@@ -186,10 +203,26 @@ export function PeriodStack({ labels: columnLabels, series: rawSeries, caption, 
                   const top = PAD.top + plotHeight - y(cumulative) - height;
                   cumulative += value;
                   if (segmentHeight <= 0) return null;
-                  return isTop ? (
-                    <path key={item.key} d={topRoundedRect(x, top, barWidth, segmentHeight, RADIUS)} fill={fill(item.color)} />
-                  ) : (
-                    <rect key={item.key} x={x} y={top + GAP} width={barWidth} height={segmentHeight} fill={fill(item.color)} />
+                  const { solid, light } = paidPieces(
+                    { y: isTop ? top : top + GAP, height: segmentHeight },
+                    (item.paid[index] ?? 0) / value,
+                  );
+                  // Only the top of the whole bar is round, whichever tone reaches it.
+                  const piece = ({ y: pieceY, height: pieceHeight }: Piece, opacity: number, round: boolean) =>
+                    round ? (
+                      <path
+                        d={topRoundedRect(x, pieceY, barWidth, pieceHeight, RADIUS)}
+                        fill={fill(item.color)}
+                        fillOpacity={opacity}
+                      />
+                    ) : (
+                      <rect x={x} y={pieceY} width={barWidth} height={pieceHeight} fill={fill(item.color)} fillOpacity={opacity} />
+                    );
+                  return (
+                    <Fragment key={item.key}>
+                      {solid && piece(solid, 1, isTop && !light)}
+                      {light && piece(light, LIGHT, isTop)}
+                    </Fragment>
                   );
                 })}
                 {index % named === 0 && (
@@ -248,6 +281,10 @@ export function PeriodStack({ labels: columnLabels, series: rawSeries, caption, 
               <span>{labels.total}</span>
               <span className="digits">{formatHours(totals[active] ?? 0)}</span>
             </p>
+            <p className="mt-1 flex justify-between text-ink-muted">
+              <span>{t("paid")}</span>
+              <span className="digits">{formatHours(paidTotals[active] ?? 0)}</span>
+            </p>
           </div>
         )}
       </div>
@@ -279,8 +316,11 @@ export function PeriodStack({ labels: columnLabels, series: rawSeries, caption, 
                       {item.name}
                     </th>
                   ))}
-                  <th scope="col" className="py-2 pl-2 text-right font-normal">
+                  <th scope="col" className="px-2 py-2 text-right font-normal">
                     {labels.total}
+                  </th>
+                  <th scope="col" className="py-2 pl-2 text-right font-normal">
+                    {t("paid")}
                   </th>
                 </tr>
               </thead>
@@ -295,7 +335,8 @@ export function PeriodStack({ labels: columnLabels, series: rawSeries, caption, 
                         {formatHours(item.values[index] ?? 0)}
                       </td>
                     ))}
-                    <td className="digits py-2 pl-2 text-right font-medium">{formatHours(totals[index] ?? 0)}</td>
+                    <td className="digits px-2 py-2 text-right font-medium">{formatHours(totals[index] ?? 0)}</td>
+                    <td className="digits py-2 pl-2 text-right">{formatHours(paidTotals[index] ?? 0)}</td>
                   </tr>
                 ))}
               </tbody>

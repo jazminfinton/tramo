@@ -4,6 +4,9 @@ import { isoDaysBetween } from "@/lib/zoned";
 // A range of calendar days, for a calendar that picks one. Days travel as ISO
 // dates ("2026-09-23"), which sort as text: comparing them compares the days.
 
+/** The longest range that can be picked by hand: a year, its leap day included. */
+export const MAX_RANGE_DAYS = 366;
+
 /** Two calendar days, the first and the last, both included. */
 export type DayRange = { from: string; to: string };
 
@@ -51,10 +54,16 @@ export function formatDayRange({ from, to }: DayRange): string {
  * The first of the `count` months a calendar opens on to show a range: the
  * months the range is in, with its last day always on show. With a last day
  * that can be picked (`max`), it doesn't open on a month past it: next to the
- * current month goes the one before, not one nobody can pick from.
+ * current month goes the one before, not one nobody can pick from. With no
+ * range yet, it opens on the last months on offer.
  */
-export function openingMonth(range: DayRange, count: number, max?: string): Date {
+export function openingMonth(range: DayRange | null, count: number, max?: string): Date {
   const limit = max === undefined ? null : fromIsoDate(max);
+  if (!range) {
+    const end = limit ?? new Date();
+    return addMonths(monthsShowing(end, 1, end), 1 - count);
+  }
+
   const last = (max !== undefined && range.to > max ? limit : fromIsoDate(range.to)) ?? new Date();
   const opening = monthsShowing(fromIsoDate(range.from) ?? last, count, last);
   if (!limit) return opening;

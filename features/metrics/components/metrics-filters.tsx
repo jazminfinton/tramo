@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { useOptimistic, useTransition } from "react";
+import { useOptimistic, useTransition, type ReactNode } from "react";
 
 import { DateRangeField } from "@/components/common/date-range-field";
 import { Dropdown } from "@/components/common/dropdown";
@@ -17,6 +17,8 @@ type MetricsFiltersProps = {
   projects: { id: string; name: string; color: string; archived: boolean; defaultRange: MetricRange }[];
   /** Today on the viewer's calendar: the last day the calendar offers. */
   today: string;
+  /** What else the page offers on these days, next to them. */
+  actions?: ReactNode;
 };
 
 const ALL = "all";
@@ -34,7 +36,7 @@ const ALL = "all";
  * A pick shows at once (optimistic) and starts the top progress bar, even
  * though the charts arrive with the next server render.
  */
-export function MetricsFilters({ period, project, projects, today }: MetricsFiltersProps) {
+export function MetricsFilters({ period, project, projects, today, actions }: MetricsFiltersProps) {
   const t = useTranslations("metrics.filters");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -86,6 +88,7 @@ export function MetricsFilters({ period, project, projects, today }: MetricsFilt
           maxDays={MAX_RANGE_DAYS}
           onChange={(range) => pick({ key: CUSTOM_RANGE, ...range })}
         />
+        {actions}
       </div>
       <Dropdown
         label={t("project")}

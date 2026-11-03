@@ -37,9 +37,11 @@ describe("tourSteps", () => {
       "popOut",
       "recent",
       "weekAdd",
+      "weekPaid",
       "weekTeam",
       "metrics",
       "metricsDates",
+      "metricsPaid",
       "settings",
       "help",
     ]);
@@ -53,9 +55,11 @@ describe("tourSteps", () => {
       "popOut",
       "recent",
       "weekAdd",
+      "weekPaid",
       "weekTeam",
       "metrics",
       "metricsDates",
+      "metricsPaid",
       "invite",
       "board",
       "settings",
@@ -83,6 +87,7 @@ describe("tourSteps", () => {
       "board",
       "metrics",
       "metricsDates",
+      "metricsPaid",
       "settings",
       "help",
     ]);
@@ -96,6 +101,39 @@ describe("tourSteps", () => {
 
       expect(steps[metrics + 1]).toEqual({ id: "metricsDates", path: "/metrics", targets: ["metrics-dates"] });
     }
+  });
+
+  it("shows how to mark hours as paid in the person's own week", () => {
+    const steps = tourSteps({ persona: "tracker", isAdmin: false });
+
+    expect(steps.find((step) => step.id === "weekPaid")).toEqual({
+      id: "weekPaid",
+      path: "/week",
+      targets: ["week-day-paid"],
+    });
+  });
+
+  it("doesn't show it to people who don't log hours", () => {
+    expect(ids({ persona: "observer", isAdmin: false })).not.toContain("weekPaid");
+    expect(ids({ persona: "unassigned", isAdmin: true })).not.toContain("weekPaid");
+  });
+
+  it("shows how to mark a range as paid to whoever can, right after the days", () => {
+    for (const who of [
+      { persona: "tracker", isAdmin: false },
+      { persona: "tracker", isAdmin: true },
+      { persona: "observer", isAdmin: true },
+      { persona: "unassigned", isAdmin: true },
+    ] as const) {
+      const steps = tourSteps(who);
+      const dates = steps.findIndex((step) => step.id === "metricsDates");
+
+      expect(steps[dates + 1]).toEqual({ id: "metricsPaid", path: "/metrics", targets: ["metrics-paid"] });
+    }
+  });
+
+  it("leaves it out for an observer, who has no hours to mark", () => {
+    expect(ids({ persona: "observer", isAdmin: false })).not.toContain("metricsPaid");
   });
 
   it("shows the team's tasks right where they're picked, in the timer", () => {

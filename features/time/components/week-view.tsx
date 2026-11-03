@@ -2,15 +2,20 @@ import { getFormatter, getTranslations } from "next-intl/server";
 
 import { AddEntryButton } from "@/features/time/components/entry-buttons";
 import { EntryRow } from "@/features/time/components/entry-row";
+import { PaidDayToggle } from "@/features/time/components/paid-toggles";
 import { WeekHeader } from "@/features/time/components/week-header";
+import { paidStatus } from "@/features/time/paid-status";
 import type { WeekData } from "@/features/time/queries";
 import { formatHours } from "@/lib/duration";
 import { zonedDateKey, zonedInstant } from "@/lib/zoned";
 
-/** One person's week: the total, a projects × days grid, and the blocks by day. */
+/**
+ * One person's week: the total and what's left to be paid of it, a projects ×
+ * days grid, and the blocks by day, where each day gets marked as paid.
+ */
 export async function WeekView({ data, timeZone, tabs }: { data: WeekData; timeZone: string; tabs: boolean }) {
   const [t, format] = await Promise.all([getTranslations("week"), getFormatter()]);
-  const { week, range, today, currentWeek, entries, buckets, weekProjects, projects, tasks, suggestions } = data;
+  const { week, range, today, currentWeek, entries, buckets, unpaid, weekProjects, projects, tasks, suggestions } = data;
   const shared = { projects, tasks, suggestions, timeZone };
 
   // Noon of each calendar day in the person's zone: a safe instant to format.
@@ -30,8 +35,15 @@ export async function WeekView({ data, timeZone, tabs }: { data: WeekData; timeZ
     <div className="flex flex-col gap-8">
       <WeekHeader week={week} currentWeek={currentWeek} days={range.days} timeZone={timeZone} view="mine" tabs={tabs} />
 
-      <section className="panel-accent flex items-center justify-between p-5">
-        <h2 className="text-sm text-ink-muted">{t("total")}</h2>
+      <section className="panel-accent flex items-center justify-between gap-4 p-5">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-sm text-ink-muted">{t("total")}</h2>
+          {entries.length > 0 && (
+            <p className="digits text-xs text-ink-dim">
+              {unpaid > 0 ? t("unpaid", { hours: formatHours(unpaid) }) : t("allPaid")}
+            </p>
+          )}
+        </div>
         <span className="poster text-7xl text-accent">{formatHours(buckets.total)}</span>
       </section>
 
@@ -116,21 +128,30 @@ export async function WeekView({ data, timeZone, tabs }: { data: WeekData; timeZ
         ) : (
           range.days
             .filter((day) => byDay.has(day))
-            .map((day) => (
-              <div key={day} className="flex flex-col gap-2">
-                <h3 className="flex items-baseline justify-between gap-3 px-1 text-sm">
-                  <span className="first-letter:uppercase">
-                    {format.dateTime(dayInstant(day), { weekday: "long", day: "numeric", month: "long" })}
-                  </span>
-                  <span className="digits text-ink-muted">{formatHours(buckets.dayTotals[range.days.indexOf(day)] ?? 0)}</span>
-                </h3>
-                <ul className="panel grain flex flex-col">
-                  {(byDay.get(day) ?? []).map((entry) => (
-                    <EntryRow key={entry.id} entry={entry} {...shared} />
-                  ))}
-                </ul>
-              </div>
-            ))
+            .map((day) => {
+              const dayEntries = byDay.get(day) ?? [];
+              const dayLabel = format.dateTime(dayInstant(day), { weekday: "long", day: "numeric", month: "long" });
+              const status = paidStatus(dayEntries);
+
+              return (
+                <div key={day} className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3 px-1 text-sm">
+                    <h3 className="min-w-0 first-letter:uppercase">{dayLabel}</h3>
+                    <div className="flex flex-none items-center gap-3">
+                      {status && <PaidDayToggle data-tour="week-day-paid" day={day} status={status} dayLabel={dayLabel} />}
+                      <span className="digits text-ink-muted">
+                        {formatHours(buckets.dayTotals[range.days.indexOf(day)] ?? 0)}
+                      </span>
+                    </div>
+                  </div>
+                  <ul className="panel grain flex flex-col">
+                    {dayEntries.map((entry) => (
+                      <EntryRow key={entry.id} entry={entry} {...shared} />
+                    ))}
+                  </ul>
+                </div>
+              );
+            })
         )}
       </section>
     </div>

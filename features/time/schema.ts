@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import { TASK_NAME_MAX, tidyTaskName } from "@/features/time/task-text";
+import { MAX_RANGE_DAYS } from "@/lib/date-range";
+import { isIsoDate, isoDaysBetween } from "@/lib/zoned";
 
 export const DESCRIPTION_MAX = 200;
 
@@ -26,6 +28,36 @@ export const startTimerSchema = z.object({
   taskId,
   description,
 });
+
+/** What marking one block as paid, or taking the mark off, needs. */
+export const paidEntrySchema = z.object({
+  entryId: z.string().min(1).max(64),
+  paid: z.boolean(),
+});
+
+const isoDay = z.string().refine(isIsoDate);
+
+/** What marking a whole day as paid, or taking the mark off, needs. */
+export const paidDaySchema = z.object({
+  day: isoDay,
+  paid: z.boolean(),
+});
+
+const dayRange = z.object({
+  from: isoDay,
+  to: isoDay,
+  projectId: z.string().min(1).max(64).nullable(),
+  personId: z.string().min(1).max(64).nullable(),
+});
+
+const makesARange = ({ from, to }: { from: string; to: string }) =>
+  from <= to && isoDaysBetween(from, to) < MAX_RANGE_DAYS;
+
+/** The hours a range to mark covers: its days, in order and a year at most, in one project or all, of one person or the whole team. */
+export const paidRangeSchema = dayRange.refine(makesARange);
+
+/** What marking a range as paid, or taking the mark off, needs. */
+export const setPaidRangeSchema = dayRange.extend({ paid: z.boolean() }).refine(makesARange);
 
 // The manual-entry form, shared by the dialog and its actions. Times arrive as
 // the text people typed; features/time/interval.ts turns them into instants on

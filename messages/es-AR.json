@@ -229,6 +229,9 @@
     "total": "Total del período",
     "totalFor": "Total del período en {project}",
     "summary": "{people, plural, one {# persona} other {# personas}} · {projects, plural, one {# proyecto} other {# proyectos}}",
+    "unpaid": "{hours} sin pagar",
+    "allPaid": "Todo pagado",
+    "paidBlocks": "{paid} de {total, plural, one {# tramo pagado} other {# tramos pagados}}",
     "hours": "Horas",
     "filters": {
       "range": "Período",
@@ -245,6 +248,8 @@
     },
     "chart": {
       "total": "Total",
+      "paid": "Pagado",
+      "unpaid": "Sin pagar",
       "other": "Otros",
       "tick": "{hours} h",
       "showTable": "Ver como tabla"
@@ -284,6 +289,8 @@
     "next": "Semana siguiente",
     "backToThisWeek": "Volver a esta semana",
     "total": "Total",
+    "unpaid": "{hours} sin pagar",
+    "allPaid": "Todo pagado",
     "project": "Proyecto",
     "caption": "Horas por proyecto y por día, semana del {week}",
     "blocks": "Tramos",
@@ -365,7 +372,8 @@
       "generic": "Algo salió mal. Probá de nuevo.",
       "pausesTooLong": "Este tramo tiene pausas: tiene que durar más que el tiempo que estuvo en pausa."
     },
-    "lastsWithPauses": "Dura {duration}, sin contar {pauses} en pausa"
+    "lastsWithPauses": "Dura {duration}, sin contar {pauses} en pausa",
+    "losesPaid": "deja de estar marcado como pagado"
   },
   "timer": {
     "title": "Timer",
@@ -395,6 +403,7 @@
       "empty": "Todavía no registraste horas. Elegí un proyecto y dale play.",
       "noDescription": "Sin descripción",
       "edited": "editado",
+      "paid": "pagado",
       "now": "ahora",
       "running": "En curso",
       "onPause": "En pausa",
@@ -430,6 +439,55 @@
       "nameRequired": "Poné un nombre.",
       "nameTooLong": "Máximo 60 caracteres.",
       "cannotTrack": "Para crear tareas del equipo tenés que registrar horas en algún proyecto.",
+      "generic": "Algo salió mal. Probá de nuevo."
+    }
+  },
+  "paid": {
+    "status": {
+      "paid": "Pagado",
+      "partial": "Parcial",
+      "unpaid": "Sin pagar"
+    },
+    "markDay": "Marcar {day} como pagado",
+    "unmarkDay": "Marcar {day} como no pagado",
+    "markEntry": "Marcar {entry} como pagado",
+    "unmarkEntry": "Marcar {entry} como no pagado",
+    "range": {
+      "open": "Marcar pagado",
+      "title": "Marcar horas como pagadas",
+      "project": "Proyecto",
+      "projectPlaceholder": "Elegí un proyecto",
+      "allProjects": "Todos los proyectos",
+      "archived": "{name} (archivado)",
+      "person": "Persona",
+      "personPlaceholder": "Elegí una persona",
+      "team": "Todo el equipo",
+      "mine": "Tus horas",
+      "dates": "Fechas",
+      "pickDates": "Elegir fechas",
+      "pickScopeFirst": "Elegí proyecto y persona primero",
+      "pickProjectFirst": "Elegí el proyecto primero",
+      "pickStart": "Modo pago: elegí el primer día.",
+      "pickEnd": "Ahora elegí el último día.",
+      "legendPaid": "Pagado",
+      "legendUnpaid": "Sin pagar",
+      "day": "{paid} de {total, plural, one {# tramo pagado} other {# tramos pagados}}",
+      "loading": "Buscando tramos…",
+      "empty": "No hay tramos terminados en esas fechas.",
+      "nothingUnpaid": "No queda nada sin pagar en esas fechas.",
+      "unpaid": "{count, plural, one {# tramo sin pagar} other {# tramos sin pagar}} · {hours}",
+      "paid": "{count, plural, one {# tramo ya pagado} other {# tramos ya pagados}}",
+      "cancel": "Cancelar",
+      "mark": "Marcar pagado",
+      "unmark": "Quitar la marca",
+      "marked": "{count, plural, =0 {No había nada para marcar} one {# tramo marcado como pagado} other {# tramos marcados como pagados}}",
+      "unmarked": "{count, plural, =0 {No había marcas para quitar} one {Le quitaste la marca a # tramo} other {Le quitaste la marca a # tramos}}"
+    },
+    "errors": {
+      "notFound": "Ese tramo ya no existe. Recargá la página.",
+      "forbidden": "Solo podés marcar tus propias horas.",
+      "running": "Ese tramo sigue abierto. Terminalo para marcarlo como pagado.",
+      "invalid": "No pudimos leer esa marca. Recargá la página.",
       "generic": "Algo salió mal. Probá de nuevo."
     }
   },
@@ -510,6 +568,10 @@
         "title": "¿Te olvidaste de darle play?",
         "body": "Cargá las horas a mano: elegí el proyecto, el día y las horas de inicio y fin."
       },
+      "weekPaid": {
+        "title": "¿Ya te lo pagaron?",
+        "body": "Marcá un día entero como pagado desde acá, o un tramo solo con el botón de su fila. Lo que sumes después a ese día queda sin pagar, y el día pasa a parcial."
+      },
       "weekTeam": {
         "title": "Tu semana y la del equipo",
         "body": "En Mías ves tus horas día por día. En Equipo, cada tarea que registró el resto en tus proyectos."
@@ -529,6 +591,10 @@
       "metricsDates": {
         "title": "El rango que quieras",
         "body": "Abrí el calendario y marcá el primer y el último día: todo lo de abajo se arma para ese rango. Los botones de al lado son atajos para las últimas semanas."
+      },
+      "metricsPaid": {
+        "title": "Marcá un período de una vez",
+        "body": "Abrí el modo pago, elegí el proyecto, la persona y las fechas, y confirmá: esas horas quedan marcadas como pagadas. El calendario te muestra cuánto hay pagado en cada día. Los admins eligen a quién marcarle; el resto marca las suyas."
       },
       "invite": {
         "title": "Sumá gente",

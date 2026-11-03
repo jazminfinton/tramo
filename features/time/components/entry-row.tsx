@@ -17,6 +17,7 @@ export type EntryRowData = {
   endedAt: Date | null;
   pausedAt: Date | null;
   pausedSeconds: number;
+  paidAt: Date | null;
   source: "TIMER" | "MANUAL";
   editedAt: Date | null;
   project: { name: string; color: string };
@@ -33,8 +34,9 @@ type EntryRowProps = {
 };
 
 /**
- * One block: project, task, times, the time worked in it, and its edit/delete
- * actions. A block still open shows whether it runs or is paused instead.
+ * One block: project, task, times, the time worked in it, and its actions: mark
+ * it as paid, edit it, delete it. A block still open shows whether it runs or is
+ * paused instead.
  */
 export async function EntryRow({ entry, showDay = false, projects, tasks, suggestions, timeZone }: EntryRowProps) {
   const [t, format] = await Promise.all([getTranslations("timer.recent"), getFormatter()]);
@@ -52,8 +54,10 @@ export async function EntryRow({ entry, showDay = false, projects, tasks, sugges
         style={{ backgroundColor: `var(--color-project-${entry.project.color})` }}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-sm">
-          {title || <span className="text-ink-dim">{t("noDescription")}</span>}
+        {/* Next to the title, not in the line below: that one gets cut on a phone. */}
+        <span className="flex min-w-0 items-baseline gap-2 text-sm">
+          <span className="truncate">{title || <span className="text-ink-dim">{t("noDescription")}</span>}</span>
+          {entry.paidAt && <span className="flex-none font-display text-xs text-accent">{t("paid")}</span>}
         </span>
         <span className="truncate text-xs text-ink-dim">
           {entry.project.name}
@@ -86,6 +90,7 @@ export async function EntryRow({ entry, showDay = false, projects, tasks, sugges
               startedAt: entry.startedAt.toISOString(),
               endedAt: entry.endedAt.toISOString(),
               pausedSeconds: entry.pausedSeconds,
+              paid: entry.paidAt !== null,
             }}
           />
         </>

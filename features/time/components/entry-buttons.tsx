@@ -11,6 +11,7 @@ import {
   type EditableEntry,
   type EntryDialogProject,
 } from "@/features/time/components/entry-dialog";
+import { PaidEntryToggle } from "@/features/time/components/paid-toggles";
 import type { SharedTask } from "@/features/time/tasks";
 
 type Shared = {
@@ -45,13 +46,14 @@ export function AddEntryButton(props: Shared) {
 const ICON_BUTTON =
   "flex size-8 items-center justify-center rounded-full text-ink-dim transition-colors duration-150 ease-signature hover:bg-raised hover:text-ink motion-reduce:transition-none";
 
-/** Edit and delete for one block. */
+/** Mark as paid, edit and delete for one block. */
 export function EntryRowActions({ entry, label, ...shared }: Shared & { entry: EditableEntry; label: string }) {
   const t = useTranslations("entries");
   const [open, setOpen] = useState(false);
 
   return (
     <div className="flex flex-none items-center">
+      <PaidEntryToggle entryId={entry.id} paid={entry.paid} label={label} className={ICON_BUTTON} />
       <button type="button" aria-label={t("editLabel", { entry: label })} onClick={() => setOpen(true)} className={ICON_BUTTON}>
         <Pencil className="icon size-4" aria-hidden />
       </button>

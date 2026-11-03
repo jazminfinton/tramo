@@ -16,6 +16,10 @@ const MIGRATIONS_DIR = path.resolve(process.cwd(), "prisma", "migrations");
  */
 export async function createTestDb() {
   const pglite = new PGlite();
+  // Prisma writes dates as UTC without an offset, which holds on a UTC session,
+  // like Neon's. PGlite starts on the machine's zone, and then SQL time-zone math
+  // would be off by that zone, here and not in production.
+  await pglite.exec("SET TIME ZONE 'UTC'");
 
   const migrations = readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -26,10 +30,21 @@ export async function createTestDb() {
     await pglite.exec(readFileSync(path.join(MIGRATIONS_DIR, name, "migration.sql"), "utf8"));
   }
 
-  const prisma = new PrismaClient({ adapter: new PrismaPGlite(pglite) });
+  const logged = new PrismaClient({ adapter: new PrismaPGlite(pglite), log: [{ emit: "event", level: "query" }] });
+  let recording: string[] | null = null;
+  logged.$on("query", (event) => recording?.push(event.query));
+  const prisma = logged as unknown as PrismaClient;
 
   return {
     prisma,
+    /** The statements Prisma sends while `run` runs: how much a query costs the database. */
+    async statementsOf(run: () => Promise<unknown>) {
+      recording = [];
+      await run();
+      const sent = recording;
+      recording = null;
+      return sent;
+    },
     /** Empties every table, keeping the schema. Call it between tests. */
     async reset() {
       const { rows } = await pglite.query<{ tablename: string }>(
